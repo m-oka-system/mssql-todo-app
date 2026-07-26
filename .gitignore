@@ -1,0 +1,24 @@
+# AI
+.claude/
+.github/
+AGENTS.md
+CLAUDE.md
+claudedocs/
+
+# 教材に含めない開発用ファイル
+tests/
+
+# シークレット
+.env
+.streamlit/secrets.toml
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
