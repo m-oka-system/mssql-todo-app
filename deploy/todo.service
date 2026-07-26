@@ -1,0 +1,38 @@
+# Streamlit の Todo アプリを常駐させる systemd unit です。
+# /etc/systemd/system/todo.service へ配置します（deploy/setup.sh が行います）。
+
+[Unit]
+Description=Streamlit Todo アプリ
+Documentation=https://docs.streamlit.io/
+# Azure SQL Database へ接続するため、ネットワークが使える状態になるまで待ちます
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# ExecStart の起動が完了するまで systemd が待つため、パスの誤りをすぐに検出できます
+Type=exec
+
+# root では起動しません。アプリ専用の低権限ユーザーを使います
+User=todo
+Group=todo
+
+# .streamlit/config.toml はカレントディレクトリから読まれるため、必ず指定します。
+# 待ち受けアドレス（server.address = "127.0.0.1"）はこの設定ファイルにあるので、
+# ExecStart に --server.address を書く必要はありません
+WorkingDirectory=/opt/todo
+
+# 接続情報については、/opt/todo/.env（パーミッション 600）に一本化します。
+# 接続情報を Environment= や EnvironmentFile= で渡しません。app.py が
+# load_dotenv(override=True) を呼ぶため、併用すると .env が systemd の設定を
+# 上書きし、どちらが効いているのか追えなくなります。
+# Streamlit 自体の設定（STREAMLIT_* ）は別で、複数 VM 構成で
+# STREAMLIT_SERVER_COOKIE_SECRET を揃える場合は Environment= を使います。
+# Streamlit のサーバー起動は app.py の実行より前のため、.env では間に合いません
+ExecStart=/usr/local/bin/uv run --frozen streamlit run app.py
+
+# 異常終了しても自動で復旧させます
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
