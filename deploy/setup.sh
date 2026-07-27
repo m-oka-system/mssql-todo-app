@@ -5,7 +5,7 @@
 #   sudo ./deploy/setup.sh
 #
 # 何度実行しても同じ結果になるように書いています。
-# 記入済みの .env は上書きしません。
+# 記入済みの /opt/todo/src/.env は上書きしません。
 
 # 途中で失敗したら、その場で止めます。
 #   -e          コマンドが失敗したら終了します
@@ -30,7 +30,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 # このスクリプトが置かれた deploy/ の親が、リポジトリのルートです
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
 log() {
     echo "==> $*"
@@ -58,7 +58,8 @@ wait_for_health() {
     local url="$1"
     local attempt=1
     while [ "$attempt" -le "$HEALTH_CHECK_ATTEMPTS" ]; do
-        # Streamlit のヘルスチェックは、接続を受け付けられる状態のとき本文に ok を返します
+        # アプリの /healthz は、要求を受け付けられる状態のとき本文に ok を返します。
+        # DB には触らないため、接続情報が未記入でも 200 が返ります
         if [ "$(curl -s --max-time 2 "$url")" = "ok" ]; then
             return 0
         fi
@@ -142,36 +143,68 @@ fi
 #### 5. アプリの配置
 
 log "アプリを ${APP_DIR} に配置します"
-mkdir -p "$APP_DIR/.streamlit"
-# 配置するファイルを列挙します。何が VM へ渡るのかが一目で分かります
-cp "$SRC_DIR/app.py" "$SRC_DIR/schema.sql" "$SRC_DIR/pyproject.toml" "$SRC_DIR/uv.lock" \
-    "$SRC_DIR/.python-version" "$SRC_DIR/.env.sample" "$APP_DIR/"
-cp "$SRC_DIR/.streamlit/config.toml" "$APP_DIR/.streamlit/config.toml"
+mkdir -p "$APP_DIR/src/templates"
+# 配置するファイルを列挙します。何が VM へ渡るのかが一目で分かります。
+# アプリのソースは src/ 配下、uv プロジェクトの定義は $APP_DIR の直下です。
+# src/.env は列挙しません。転送物に混ざっていても、VM で記入済みの
+# src/.env を上書きしないためです（作成は下の if で行います）
+cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/schema.sql" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
+cp "$REPO_DIR/src/templates/index.html" "$REPO_DIR/src/templates/error.html" \
+    "$APP_DIR/src/templates/"
+cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
 
 # 既にある .env は上書きしません。接続情報を記入したあとに再実行しても消えません
-if [ ! -f "$APP_DIR/.env" ]; then
-    cp "$SRC_DIR/.env.sample" "$APP_DIR/.env"
+if [ ! -f "$APP_DIR/src/.env" ]; then
+    cp "$REPO_DIR/src/.env.sample" "$APP_DIR/src/.env"
 fi
 
 chown -R "${APP_USER}:${APP_USER}" "$APP_DIR"
 # 接続情報を含むため、所有者だけが読み書きできる権限にします
-chmod 600 "$APP_DIR/.env"
+chmod 600 "$APP_DIR/src/.env"
 
 #### 6. 依存パッケージのインストール
 
 log "依存パッケージをインストールします"
 # HOME を明示して、uv のキャッシュと仮想環境をアプリのディレクトリに収めます。
-# --frozen は uv.lock のバージョンをそのまま使うための指定です
-sudo -u "$APP_USER" env HOME="$APP_DIR" "$UV_BIN" sync --frozen --project "$APP_DIR"
+#   --frozen  uv.lock のバージョンをそのまま使います
+#   --no-dev  ruff と pytest を入れません。VM では使わないためです。
+#             todo.service の uv run 側にも同じ指定が必要です。片方だけだと、
+#             サービスの初回起動時に uv が入れ直し、ここで減らした意味がなくなります
+sudo -u "$APP_USER" env HOME="$APP_DIR" "$UV_BIN" sync --frozen --no-dev --project "$APP_DIR"
 
-#### 7. systemd サービスの設定
+#### 7. 旧バージョンの残骸の削除
+
+log "旧バージョンの残骸を削除します"
+# 依存のインストールが終わってから消します。**順序が重要です。**
+# 先に消すと、set -e で uv sync が失敗したときに次の systemd unit の差し替えへ進めず、
+# 旧 unit（ExecStart に streamlit run app.py を持つ）が削除済みのファイルを指したまま
+# 残ります。動いていたサービスが二度と起動しない状態になります。
+#
+# 消す対象は 1 つずつ列挙します。rm -rf "$APP_DIR" のようなまとめ消しは、
+# 記入済みの .env や作成済みの .venv まで消してしまいます
+rm -f "$APP_DIR/app.py"
+rm -rf "$APP_DIR/.streamlit"
+# schema.sql と .env.sample は src/ 配下へ移りました。直下に残ると同じ内容が
+# 2 か所に並び、受講者がどちらを使うのか迷います
+rm -f "$APP_DIR/schema.sql" "$APP_DIR/.env.sample"
+# $APP_DIR/.env（旧版）は消しません。接続情報を含むファイルを自動で消すと、
+# 受講者が控えを失う場合があります。不要になった旨は完了メッセージで案内します
+
+#### 8. systemd サービスの設定
 
 log "systemd サービスを設定します"
 cp "$SCRIPT_DIR/todo.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}.service"
-# 再実行したときに更新後の app.py を読み込ませるため、start ではなく restart します
-systemctl restart "${SERVICE_NAME}.service"
+# 直前の起動が短時間に 5 回失敗していると start-limit-hit になり、restart そのものが
+# 拒否されます。daemon-reload では回数が消えないため、明示的に解除します。
+# これがないと、app.py を直して再実行しても復旧できません
+systemctl reset-failed "${SERVICE_NAME}.service" 2>/dev/null || true
+
+# 再実行したときに更新後の src/app.py を読み込ませるため、start ではなく restart します。
+# 失敗したときは set -e でそのまま終わらせず、ログの見方を案内してから止めます
+systemctl restart "${SERVICE_NAME}.service" ||
+    abort_with_log_hint "サービス ${SERVICE_NAME} を起動できませんでした。" "$SERVICE_NAME"
 
 # restart の成功は、ExecStart のプロセスを起動できたことしか示しません。直後に終了しても
 # Restart=always が 5 秒ごとに起動し直すため、失敗が再起動のループに隠れます。
@@ -181,12 +214,14 @@ if ! systemctl is-active --quiet "${SERVICE_NAME}.service"; then
 fi
 
 log "アプリの応答を待ちます（最大 $((HEALTH_CHECK_ATTEMPTS * HEALTH_CHECK_INTERVAL)) 秒）"
-if ! wait_for_health "http://127.0.0.1:8501/_stcore/health"; then
+# 確認先は / ではなく /healthz です。/ はデータベースに接続するため、この時点では
+# .env が未記入で 503 が返り、正しくセットアップできてもここで失敗扱いになります
+if ! wait_for_health "http://127.0.0.1:8000/healthz"; then
     abort_with_log_hint \
-        "アプリが応答しません（http://127.0.0.1:8501/_stcore/health）。" "$SERVICE_NAME"
+        "アプリが応答しません（http://127.0.0.1:8000/healthz）。" "$SERVICE_NAME"
 fi
 
-#### 8. nginx の設定
+#### 9. nginx の設定
 
 log "nginx を設定します"
 cp "$SCRIPT_DIR/todo.nginx.conf" /etc/nginx/sites-available/todo.conf
@@ -202,10 +237,11 @@ if ! systemctl is-active --quiet nginx; then
 fi
 
 log "nginx 経由の応答を確認します"
-# 80 番から同じヘルスチェックに届けば、リバースプロキシの経路が通っています。
-# WebSocket の疎通は curl では確かめられないため、ブラウザでの確認が別途必要です
-if ! wait_for_health "http://127.0.0.1/_stcore/health"; then
-    abort_with_log_hint "nginx 経由でアプリに到達できません（http://127.0.0.1/）。" "nginx"
+# 80 番から同じ /healthz に届けば、nginx から gunicorn への経路が通っています。
+# ここも / は使いません（.env 未記入の状態では 503 になります）
+if ! wait_for_health "http://127.0.0.1/healthz"; then
+    abort_with_log_hint \
+        "nginx 経由でアプリに到達できません（http://127.0.0.1/healthz）。" "nginx"
 fi
 
 #### 完了
@@ -220,16 +256,27 @@ cat <<EOF
   2. Azure SQL Database のファイアウォール規則に、1. の IP アドレスを追加します
      （追加しないと、接続情報が正しくてもデータベースに到達できません）
   3. 接続情報を記入します
-       sudo -u ${APP_USER} nano ${APP_DIR}/.env
+       sudo -u ${APP_USER} nano ${APP_DIR}/src/.env
   4. サービスを再起動します
        sudo systemctl restart ${SERVICE_NAME}
   5. ブラウザから VM のパブリック IP アドレスへアクセスします
 
 テーブルをこの VM から作成する場合（開発 PC で実行済みなら不要です）:
   /opt/mssql-tools18/bin/sqlcmd -S <サーバー名>.database.windows.net \\
-      -d <データベース名> -U <管理者ユーザー> -i ${APP_DIR}/schema.sql
+      -d <データベース名> -U <管理者ユーザー> -i ${APP_DIR}/src/schema.sql
 
 ログを確認するコマンド:
   sudo journalctl -u ${SERVICE_NAME} -f
-
 EOF
+
+# 旧版が置いていった .env は、接続情報を含むため自動では消しません
+if [ -f "$APP_DIR/.env" ]; then
+    cat <<EOF
+
+${APP_DIR}/.env は旧バージョンが使っていたファイルで、現在は参照されません。
+接続情報を ${APP_DIR}/src/.env へ写したあと、次のコマンドで削除してください。
+  sudo rm ${APP_DIR}/.env
+EOF
+fi
+
+echo ""
