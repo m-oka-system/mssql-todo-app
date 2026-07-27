@@ -94,6 +94,9 @@ mssql-todo-app/
 ├── pyproject.toml          # 依存パッケージの定義
 ├── uv.lock                 # バージョン固定
 ├── .python-version         # Python のバージョン
+├── docs/
+│   ├── requirements.md     # 要件定義書
+│   └── design.md           # 設計書（本書）
 ├── src/
 │   ├── app.py              # アプリ本体
 │   ├── schema.sql          # テーブル定義
@@ -334,11 +337,7 @@ sequenceDiagram
 
 **例外の詳細は画面に出しません。** データベースのエラーメッセージにはサーバー名やユーザー名が含まれます。詳細はサーバーのログへ記録し、画面には対処法だけを表示します。
 
-VM 上では次のコマンドで確認できます。
-
-```bash
-sudo journalctl -u todo -n 50 --no-pager
-```
+**VM では systemd のジャーナルへ記録されます。** gunicorn が標準エラー出力をそのまま渡すためです。確認する手順は [README のトラブルシュート](../README.md#トラブルシュート)にあります。
 
 ## 9. デプロイ構成
 
