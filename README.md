@@ -1,6 +1,6 @@
-# Streamlit + Azure SQL Database で作る Todo アプリ
+# Flask + Azure SQL Database で作る Todo アプリ
 
-Udemy コース「作りながら覚える Microsoft Azure 入門講座（IaaS 編）」の教材です。Streamlit で書いた Todo アプリを、開発 PC（macOS）と Azure VM（Ubuntu 24.04 LTS）の両方で動かします。
+Udemy コース「作りながら覚える Microsoft Azure 入門講座（IaaS 編）」の教材です。Flask で書いた Todo アプリを、開発 PC（macOS）と Azure VM（Ubuntu 24.04 LTS）の両方で動かします。
 
 タスクの一覧・追加・完了状態の変更・削除ができます。ログイン認証はありません。
 
@@ -11,29 +11,32 @@ Udemy コース「作りながら覚える Microsoft Azure 入門講座（IaaS �
 ```mermaid
 flowchart LR
     A[ブラウザ] -->|HTTP 80・平文<br>NSG でソース IP 制限| B[nginx]
-    B -->|WebSocket 転送<br>127.0.0.1:8501| C[Streamlit]
+    B -->|HTTP プロキシ<br>127.0.0.1:8000| C[gunicorn + Flask]
     C -->|ODBC Driver 18<br>TLS 1433| D[(Azure SQL Database)]
     E[開発 PC / macOS] -->|ODBC Driver 18<br>TLS 1433| D
 ```
 
 開発 PC と Azure VM は、同じ Azure SQL Database に接続します。データベースは 1 つだけ作ります。
 
+VM では nginx がブラウザからの要求を受け、gunicorn へ転送します。**gunicorn は Flask アプリを常駐させる WSGI サーバーです。** Flask に付属する開発用サーバーは本番向けではないため、VM では使いません。
+
 ## ファイル構成
 
-| ファイル                 | 役割                                         |
-| ------------------------ | -------------------------------------------- |
-| `app.py`                 | アプリ本体。1 ファイルで完結します           |
-| `schema.sql`             | テーブル定義。管理者が一度だけ実行します     |
-| `pyproject.toml`         | 依存パッケージの定義                         |
-| `uv.lock`                | 依存パッケージのバージョン固定               |
-| `.python-version`        | Python のバージョン（3.12）                  |
-| `.env.sample`            | 接続情報のテンプレート                       |
-| `.streamlit/config.toml` | 待ち受けアドレスとエラー表示の設定           |
-| `deploy/setup.sh`        | VM のセットアップを 1 本にまとめたスクリプト |
-| `deploy/todo.service`    | systemd unit（Streamlit を常駐させます）     |
-| `deploy/todo.nginx.conf` | nginx の設定（リバースプロキシ）             |
+| ファイル                   | 役割                                         |
+| -------------------------- | -------------------------------------------- |
+| `src/app.py`               | アプリ本体。1 ファイルで完結します           |
+| `src/templates/index.html` | 一覧と追加フォームの画面                     |
+| `src/templates/error.html` | 接続失敗・テーブル未作成の案内画面           |
+| `src/schema.sql`           | テーブル定義。管理者が一度だけ実行します     |
+| `src/.env.sample`          | 接続情報のテンプレート                       |
+| `pyproject.toml`           | 依存パッケージの定義                         |
+| `uv.lock`                  | 依存パッケージのバージョン固定               |
+| `.python-version`          | Python のバージョン（3.12）                  |
+| `deploy/setup.sh`          | VM のセットアップを 1 本にまとめたスクリプト |
+| `deploy/todo.service`      | systemd unit（gunicorn を常駐させます）      |
+| `deploy/todo.nginx.conf`   | nginx の設定（リバースプロキシ）             |
 
-接続情報を書く `.env` は `.gitignore` の対象です。リポジトリにコミットしないでください。
+接続情報を書く `src/.env` は `.gitignore` の対象です。リポジトリにコミットしないでください。
 
 ## ローカル実行手順
 
@@ -60,6 +63,8 @@ curl -LsSf https://astral.sh/uv/0.9.18/install.sh | sh
 ```bash
 uv --version
 ```
+
+**`pip` は使いません。** 依存パッケージの導入もアプリの起動も、すべて uv 経由で行います。
 
 ### 2. ODBC Driver 18 の導入
 
@@ -115,12 +120,12 @@ Azure ポータルで作成します。**無料オファーの設定を 1 か所
 
 ### 5. テーブルの作成
 
-`schema.sql` を実行して `dbo.todos` テーブルを作ります。**アプリはテーブルを自動作成しません。** 複数の VM が同時に起動したときに競合するためです。
+`src/schema.sql` を実行して `dbo.todos` テーブルを作ります。**アプリはテーブルを自動作成しません。** 複数の VM や複数のワーカーが同時に起動したときに競合するためです。
 
 リポジトリのルートで実行します。
 
 ```bash
-sqlcmd -S <サーバー名>.database.windows.net -d todo -U <管理者ユーザー> -i schema.sql
+sqlcmd -S <サーバー名>.database.windows.net -d todo -U <管理者ユーザー> -i src/schema.sql
 ```
 
 パスワードは非表示のプロンプトで尋ねられます。`-P` オプションは使いません。**パスワードがシェルの履歴とプロセス一覧に残るためです。**
@@ -134,13 +139,13 @@ sqlcmd -S <サーバー名>.database.windows.net -d todo -U <管理者ユーザ�
 
 ### 6. 接続情報の設定
 
-テンプレートをコピーして `.env` を作ります。
+テンプレートをコピーして `src/.env` を作ります。**アプリと同じ `src/` に置きます。**
 
 ```bash
-cp .env.sample .env
+cp src/.env.sample src/.env
 ```
 
-`.env` を開き、手順 4 で控えた値を記入します。
+`src/.env` を開き、手順 4 で控えた値を記入します。
 
 ```text
 DB_HOST=<サーバー名>.database.windows.net
@@ -154,18 +159,32 @@ DB_PASSWORD=<パスワード>
 ### 7. アプリの起動
 
 ```bash
-uv run streamlit run app.py
+uv run python src/app.py
 ```
 
-ブラウザで <http://localhost:8501> を開きます。タスクを追加して、一覧に表示されれば成功です。
+ブラウザで <http://127.0.0.1:5000> を開きます。タスクを追加して、一覧に表示されれば成功です。
 
 停止するときは、起動したターミナルで `Ctrl + C` を押します。
+
+**`Address already in use` で起動できない場合は、AirPlay レシーバーが 5000 番を使っています。** 対処はトラブルシュートの「ローカルで `Address already in use` になる」を参照してください。
+
+`src/.env` を書き換えても反映されません。**接続情報はアプリの起動時に読み込みます。** 修正したら `Ctrl + C` で停止して、起動し直してください。
+
+#### gunicorn で起動する場合
+
+VM と同じ経路を確認したいときに使います。ローカル開発では必要ありません。
+
+```bash
+uv run gunicorn --chdir src --bind 127.0.0.1:8000 --workers 3 --timeout 150 --access-logfile - app:app
+```
+
+ブラウザで <http://127.0.0.1:8000> を開きます。リクエストごとにアクセスログが表示されます。
 
 ## Azure デプロイ手順
 
 Azure VM（Ubuntu 24.04 LTS）にアプリを配置して公開します。**ローカル実行手順の手順 4 から 6 まで（Azure SQL Database の作成、テーブルの作成、接続情報の確認）を先に終わらせてください。**
 
-### 検証済みの構成
+### 構成
 
 | 項目             | 値                                              |
 | ---------------- | ----------------------------------------------- |
@@ -235,28 +254,34 @@ Azure ポータルで SQL サーバーの「ネットワーク」を開き、フ
 
 ```bash
 COPYFILE_DISABLE=1 tar czf - \
-    app.py schema.sql pyproject.toml uv.lock .python-version .env.sample \
-    .streamlit/config.toml deploy \
+    --no-xattrs --exclude='src/.env' --exclude='__pycache__' \
+    src pyproject.toml uv.lock .python-version deploy \
     | ssh -i ~/.ssh/ssh-key.pem azureuser@<VM のパブリック IP> \
         "mkdir -p ~/todo-src && tar xzf - -C ~/todo-src"
 ```
 
-転送するのは次のファイルとディレクトリだけです。`.env` は転送しません。接続情報は VM 上で記入します。
+転送するのは次のファイルとディレクトリだけです。
 
-| 対象                     | 用途                             |
-| ------------------------ | -------------------------------- |
-| `app.py`                 | アプリ本体                       |
-| `schema.sql`             | テーブル定義（参照用）           |
-| `pyproject.toml`         | 依存パッケージの定義             |
-| `uv.lock`                | バージョン固定                   |
-| `.python-version`        | Python のバージョン              |
-| `.env.sample`            | 接続情報のテンプレート           |
-| `.streamlit/config.toml` | Streamlit の設定                 |
-| `deploy/`                | セットアップスクリプトと設定一式 |
+| 対象              | 用途                                   |
+| ----------------- | -------------------------------------- |
+| `src/`            | アプリ本体・テンプレート・テーブル定義 |
+| `pyproject.toml`  | 依存パッケージの定義                   |
+| `uv.lock`         | バージョン固定                         |
+| `.python-version` | Python のバージョン                    |
+| `deploy/`         | セットアップスクリプトと設定一式       |
 
-#### COPYFILE_DISABLE=1 が必要な理由
+**`--exclude='src/.env'` を必ず付けてください。** 接続情報は VM 上で記入します。開発 PC の `src/.env` を送ると、VM に記入済みの内容があっても上書きされる可能性があります。
 
-macOS の `tar` は、拡張属性を保存するために `._app.py` のような **AppleDouble ファイル**を書庫へ混ぜます。`COPYFILE_DISABLE=1` を付けないと、VM 側に `._` で始まる不要なファイルが並びます。動作は止まりませんが、`ls` の結果が分かりにくくなります。
+#### COPYFILE_DISABLE=1 と --no-xattrs が必要な理由
+
+macOS の `tar` は、**macOS 固有の情報を 2 通りの方法で書庫へ混ぜます。** どちらも Linux 側では不要です。
+
+| 指定                 | 防ぐもの                  | 付けないと起きること                                                     |
+| -------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `COPYFILE_DISABLE=1` | AppleDouble ファイル      | VM 側に `._app.py` のような不要なファイルが並びます                      |
+| `--no-xattrs`        | 拡張属性（`com.apple.*`） | 展開時に `Ignoring unknown extended header keyword` の警告が大量に出ます |
+
+どちらも動作は止まりませんが、**警告が 10 行以上流れると、セットアップが失敗したように見えます。**
 
 ### 7. セットアップスクリプトの実行
 
@@ -277,23 +302,25 @@ sudo ~/todo-src/deploy/setup.sh
 6. systemd サービスの登録と起動
 7. nginx の設定と起動
 
+**接続情報を記入する前でも、スクリプトは正常に完了します。** 起動確認には `/healthz` を使っており、この URL はデータベースに接続しません。
+
 最後に「セットアップが完了しました」と表示され、次に行う手順の一覧が出ます。**そのうち送信元 IP の確認とファイアウォール規則の追加は、手順 4 と手順 5 で済ませています。**
 
 ### 8. 接続情報の記入
 
-`/opt/todo/.env` に、ローカル実行手順の手順 6 と同じ内容を記入します。
+`/opt/todo/src/.env` に、ローカル実行手順の手順 6 と同じ内容を記入します。
 
 ```bash
-sudo -u todo nano /opt/todo/.env
+sudo -u todo nano /opt/todo/src/.env
 ```
 
 保存は `Ctrl + O` → `Enter`、終了は `Ctrl + X` です。
 
-`.env` の所有者は `todo`、パーミッションは 600 です。接続情報を含むため、アプリの実行ユーザーだけが読める状態にしています。**`sudo -u todo` を付けて `todo` ユーザーとして編集してください。** 所有者とパーミッションを保ったまま書き換えられます。
+`src/.env` の所有者は `todo`、パーミッションは 600 です。接続情報を含むため、アプリの実行ユーザーだけが読める状態にしています。**`sudo -u todo` を付けて `todo` ユーザーとして編集してください。** 所有者とパーミッションを保ったまま書き換えられます。
 
 ### 9. サービスの再起動
 
-`.env` は起動時に読み込まれるため、記入したら再起動します。
+`src/.env` は起動時に読み込まれるため、記入したら再起動します。
 
 ```bash
 sudo systemctl restart todo
@@ -329,33 +356,47 @@ systemd に登録済みのため、VM を再起動してもアプリは自動的
 
 VM 上で次のコマンドを実行してください。
 
-| 目的                 | コマンド                     | 期待する結果                     |
-| -------------------- | ---------------------------- | -------------------------------- |
-| ログの確認           | `sudo journalctl -u todo -f` | 例外のトレースバックが確認できる |
-| サービスの状態確認   | `systemctl status todo`      | `Active: active (running)`       |
-| 待ち受けアドレス確認 | `sudo ss -ltnp \| grep 8501` | `127.0.0.1:8501` になっている    |
-| nginx の状態確認     | `systemctl status nginx`     | `Active: active (running)`       |
+| 目的                 | コマンド                             | 期待する結果                     |
+| -------------------- | ------------------------------------ | -------------------------------- |
+| ログの確認           | `sudo journalctl -u todo -f`         | 例外のトレースバックが確認できる |
+| サービスの状態確認   | `systemctl status todo`              | `Active: active (running)`       |
+| アプリの死活確認     | `curl http://127.0.0.1:8000/healthz` | `ok`                             |
+| 待ち受けアドレス確認 | `sudo ss -ltnp \| grep 8000`         | `127.0.0.1:8000` になっている    |
+| nginx の状態確認     | `systemctl status nginx`             | `Active: active (running)`       |
 
-`journalctl -f` は新しいログを表示し続けます。**ログを見ながらブラウザを操作すると、どの操作で何が起きたかが分かります。** 終了は `Ctrl + C` です。
+`journalctl -f` は新しいログを表示し続けます。**ログを見ながらブラウザを操作すると、どの操作で何が起きたかが分かります。** アクセスログも同じ場所に出ます。終了は `Ctrl + C` です。
 
-待ち受けが `0.0.0.0:8501` になっている場合、`/opt/todo/.streamlit/config.toml` が読まれていません。認証のないアプリが nginx を経由せずに公開されている状態です。ファイルの配置と `todo.service` の `WorkingDirectory` を確認してください。
+**`/healthz` はデータベースに接続しません。** ここが `ok` を返すのに画面がエラーになる場合、原因はアプリではなくデータベースへの接続です。切り分けに使ってください。
+
+待ち受けが `0.0.0.0:8000` になっている場合、`todo.service` の `--bind` が効いていません。認証のないアプリが nginx を経由せずに公開されている状態です。
 
 ### 初回アクセスが遅い
 
-**原因** — Azure SQL Database のサーバーレス構成は、60 分間の無操作で自動的に一時停止します。停止中のデータベースへ接続すると、エラー 40613（データベースが利用できません）が返ります。
+**原因** — Azure SQL Database のサーバーレス構成は、無操作が続くと自動的に一時停止します。**停止中のデータベースへの接続は、エラーをすぐに返さずに待たされます。** 接続を試みたこと自体が再開の引き金になり、再開の完了までおよそ 40 秒かかります。
 
-**影響** — アプリは 15 秒間隔で最大 5 回まで接続をやり直します。その間は「データベースに接続しています。停止状態からの復帰には最大 1 分かかります。」と表示されます。**復帰にはおよそ 1 分かかります。**
+**影響** — アプリは接続を 10 秒であきらめ、5 秒待ってやり直します。これを最大 5 回繰り返すため、**再開が完了した直後の試行で表示されます。** その間、ブラウザは読み込み中のままになります。**実機では 50 秒前後で表示されました。**
 
-**対処** — 待ってください。異常ではありません。実機での検証中にも 2 回発生しました。1 分以上待っても復帰しない場合は、次項の「データベースに接続できません」を確認してください。
+**対処** — 待ってください。異常ではありません。2 分以上待っても復帰しない場合は、次項の「データベースに接続できません」を確認してください。
 
 自動一時停止は意図した設計です。停止しない構成にすると接続が保持され続け、無料枠（毎月 10 万 vCore 秒）を **1.7 日ほどで使い切ります。**
+
+この待ち時間に合わせて、3 つのタイムアウトを内側から順に長く設定しています。**どれか 1 つを既定値に戻すと、復帰を待ち切れずにエラーになります。**
+
+| 層               | 設定                                      | 値                                      |
+| ---------------- | ----------------------------------------- | --------------------------------------- |
+| アプリのリトライ | `src/app.py` の定数                       | 1 接続あたり最悪 70 秒・1 画面で 140 秒 |
+| gunicorn         | `todo.service` の `--timeout`             | 150 秒                                  |
+| nginx            | `todo.nginx.conf` の `proxy_read_timeout` | 180 秒                                  |
+
+一覧の表示では、テーブルの存在確認と一覧取得で**接続を 2 回張ることがあります。** そのため 1 画面あたりの上限は 70 秒の 2 倍で見積もります。
 
 ### 「データベースに接続できません」と表示される
 
 画面に次のメッセージが出た場合です。
 
 ```text
-データベースに接続できません。接続情報とファイアウォール規則を確認してください。
+データベースに接続できません。src/.env の接続情報と、Azure SQL Database の
+ファイアウォール規則にクライアント IP が登録されているかを確認してください。
 ```
 
 原因は 4 つ考えられます。上から順に確認してください。
@@ -363,71 +404,74 @@ VM 上で次のコマンドを実行してください。
 | 順  | 原因                             | 確認方法                                         | 対処                                            |
 | --- | -------------------------------- | ------------------------------------------------ | ----------------------------------------------- |
 | 1   | ファイアウォール規則に IP がない | 接続元で `curl -s https://ifconfig.me`           | 表示された IP を SQL サーバーの規則へ追加します |
-| 2   | `.env` の記入誤り                | `sudo journalctl -u todo -n 50 --no-pager`       | サーバー名・ユーザー名・パスワードを修正します  |
-| 3   | データベースが停止中             | 画面に接続中の表示が出る                         | 1 分ほど待ちます（前項を参照）                  |
+| 2   | `src/.env` の記入誤り            | `sudo journalctl -u todo -n 50 --no-pager`       | サーバー名・ユーザー名・パスワードを修正します  |
+| 3   | データベースが停止中             | 1 分ほど待って再読み込みする                     | 前項を参照します                                |
 | 4   | 無料 vCore 秒の枯渇              | Azure ポータルでデータベースの使用量を確認します | **翌月まで復旧しません**                        |
 
-**原因 3 と原因 4 は、どちらも同じエラー 40613 を返します。** 無操作による停止は次の接続で再開しますが、枯渇による停止は**その月の残りは再開しません。** 何度やり直しても復旧しない場合は、使用量を確認してください。
+**原因 3 と原因 4 は、画面上は区別できません。** 無操作による停止は接続を試みれば再開しますが、枯渇による停止は**その月の残りは再開しません。** 何度やり直しても復旧しない場合は、使用量を確認してください。
 
-接続情報を直したあとは、画面の「再接続」ボタンを押してください。ボタンを押すと `.env` を読み直します。**アプリの再起動は不要です。** VM 上で `/opt/todo/.env` を直した場合も同じです。
+**原因はログのエラー番号で切り分けます。** 画面のメッセージは 4 つとも同じです。
 
-画面そのものが表示されない場合は、サービスを再起動してからログを確認します。
+| ログに出るエラー | 意味                             | 待つと直るか   |
+| ---------------- | -------------------------------- | -------------- |
+| `40615`          | ファイアウォール規則に IP がない | 直りません     |
+| `18456`          | ユーザー名かパスワードの誤り     | 直りません     |
+| `40613`          | データベースが利用できない       | 直ります       |
+| `HYT00`          | ログインのタイムアウト           | **場合による** |
+
+**`HYT00` は 2 つの原因で出ます。** データベースが再開中の場合と、**サーバー名の誤りやネットワークの不達**の場合です。アプリからは区別できないため、どちらも再試行して待ちます。
+
+`HYT00` が出て待っても直らないときは、**まず `DB_HOST` の綴りを確認してください。** 存在しないサーバー名でも、エラーは即座には返らず 15 秒待ってから `HYT00` になります。
+
+接続情報を直したあとは、サービスを再起動してください。**接続情報はアプリの起動時に読み込みます。**
 
 ```bash
+sudo -u todo nano /opt/todo/src/.env
 sudo systemctl restart todo
-sudo journalctl -u todo -n 50 --no-pager
 ```
 
 ### 「テーブル dbo.todos がありません」と表示される
 
-**原因** — `schema.sql` を実行していません。**アプリはテーブルを自動作成しません。**
+**原因** — `src/schema.sql` を実行していません。**アプリはテーブルを自動作成しません。**
 
 **影響** — 一覧も追加も操作できません。
 
-**対処** — 開発 PC からテーブルを作成します。ローカル実行手順の手順 5 を実行してください。作成したら、画面の「テーブルを再確認」ボタンを押します。**アプリの再起動は不要です。**
+**対処** — 開発 PC からテーブルを作成します。ローカル実行手順の手順 5 を実行してください。作成したら画面を再読み込みします。**アプリの再起動は不要です。**
 
 VM 上で作成することもできます。`sqlcmd` は PATH に入らないため、絶対パスで実行します。
 
 ```bash
 /opt/mssql-tools18/bin/sqlcmd -S <サーバー名>.database.windows.net \
-    -d todo -U <管理者ユーザー> -i /opt/todo/schema.sql
+    -d todo -U <管理者ユーザー> -i /opt/todo/src/schema.sql
 ```
 
-`DB_NAME` に存在しないデータベースを指定している場合も同じ表示になります。`.env` を確認してください。
+`DB_NAME` に別のデータベースを指定している場合も同じ表示になります。`src/.env` を確認してください。
 
-### SSH 接続が拒否される
+### ローカルで `Address already in use` になる
 
-**原因** — 秘密鍵の権限が緩すぎます。
+**原因** — **macOS の AirPlay レシーバーが 5000 番を使っています。** 既定で有効になっているため、多くの Mac で発生します。
 
-**影響** — 次の警告が出て接続できません。
+**影響** — アプリが起動できません。
 
-```text
-WARNING: UNPROTECTED PRIVATE KEY FILE!
-```
-
-**対処** — 所有者だけが読める権限にします。
+**対処** — まず、何が 5000 番を使っているか確認します。
 
 ```bash
-chmod 400 ~/.ssh/ssh-key.pem
+lsof -nP -iTCP:5000 -sTCP:LISTEN
 ```
 
-権限が正しいのに接続できない場合は、NSG の 22/tcp のソース IP を確認してください。自宅や職場のグローバル IP アドレスは変わることがあります。
+`ControlCenter` と表示されたら AirPlay レシーバーです。**システム設定の「一般」→「AirDrop と Handoff」で「AirPlay レシーバー」をオフにしてください。** 確認したら、もう一度アプリを起動します。
 
-### VM に `._` で始まるファイルが並ぶ
-
-**原因** — macOS の `tar` で転送するときに `COPYFILE_DISABLE=1` を付けませんでした。
-
-**影響** — `._app.py` のような AppleDouble ファイルが VM 側に残ります。動作には影響しません。
-
-**対処** — VM 上で不要なファイルを削除し、`COPYFILE_DISABLE=1` を付けて転送し直します。
+AirPlay を使い続けたい場合は、ポートを変えて起動することもできます。
 
 ```bash
-find ~/todo-src -name '._*' -delete
+uv run flask --app src/app run --port 5001
 ```
+
+この場合、ブラウザで開く URL も <http://127.0.0.1:5001> になります。
 
 ### ブラウザに 502 Bad Gateway が表示される
 
-**原因** — nginx は動いていますが、転送先の Streamlit が応答していません。
+**原因** — nginx は動いていますが、転送先の gunicorn が応答していません。
 
 **影響** — 画面が表示されません。
 
@@ -438,25 +482,53 @@ systemctl status todo
 sudo journalctl -u todo -n 50 --no-pager
 ```
 
-**`.env` の記入誤りでは 502 になりません。** 接続に失敗しても画面にメッセージが出るだけで、プロセスは動き続けます。502 は、Streamlit のプロセスそのものが起動していないことを示します。ログで起動時のエラーを確認してください。
+**`src/.env` の記入誤りでは 502 になりません。** 接続に失敗しても画面にメッセージが出るだけで、プロセスは動き続けます。502 は、gunicorn のプロセスそのものが起動していないことを示します。ログで起動時のエラーを確認してください。
 
-### 画面が更新されない・操作が反映されない
+`Active: activating (auto-restart)` が繰り返される場合、`src/app.py` の読み込みに失敗しています。5 回連続で失敗すると `failed` になり、状態から判別できます。
 
-**原因** — nginx が WebSocket のヘッダを転送していません。Streamlit はブラウザとの間を WebSocket で常時接続します。
+### ブラウザに 504 Gateway Time-out が表示される
 
-**影響** — 画面は表示されますが、チェックボックスやボタンの操作が反映されません。
+**原因** — nginx が待っている間に、gunicorn からの応答が返りませんでした。
 
-**対処** — nginx の設定を確認します。`Upgrade` と `Connection` のヘッダ転送が必要です。
+**影響** — 画面が表示されません。
 
-```bash
-sudo nginx -t
-cat /etc/nginx/sites-available/todo.conf
+**対処** — データベースの復帰待ちが 180 秒を超えた可能性があります。`journalctl` でアプリのログを確認し、`HYT00` や `40613` が続いているなら無料 vCore 秒の残量を確認してください。
+
+`todo.nginx.conf` の `proxy_read_timeout` を短くしていないかも確認してください。既定値は 60 秒で、この設定のままでは復帰を待てません。
+
+### SSH で「REMOTE HOST IDENTIFICATION HAS CHANGED」と警告される
+
+**原因** — 以前に使った VM と同じパブリック IP アドレスが、新しい VM に割り当てられました。VM を作り直すと起こります。
+
+**影響** — 次の警告が出て接続できません。
+
+```text
+WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
 ```
 
-設定を直したら反映します。
+**対処** — その IP アドレスの古い記録だけを消します。
 
 ```bash
-sudo systemctl reload nginx
+ssh-keygen -R <VM のパブリック IP>
+```
+
+**VM を作り直した覚えがない場合は、消さずに調べてください。** この警告は本来、接続先が別のサーバーにすり替わったことを知らせるものです。
+
+### VM に `._` で始まるファイルが並ぶ / 展開時に警告が出る
+
+**原因** — macOS の `tar` で転送するときに `COPYFILE_DISABLE=1` または `--no-xattrs` を付けませんでした。
+
+**影響** — 前者では `._app.py` のような AppleDouble ファイルが VM 側に残ります。後者では展開時に次の警告が並びます。どちらも動作には影響しません。
+
+```text
+tar: Ignoring unknown extended header keyword 'LIBARCHIVE.xattr.com.apple.provenance'
+```
+
+**対処** — VM 上で不要なファイルを削除し、両方を付けて転送し直します。
+
+```bash
+find ~/todo-src -name '._*' -delete
 ```
 
 ### 接続が途中で切れる
@@ -467,5 +539,6 @@ sudo systemctl reload nginx
 
 - [Azure SQL Database の無料オファーに関する FAQ](https://learn.microsoft.com/ja-jp/azure/azure-sql/database/free-offer-faq)
 - [Linux への Microsoft ODBC ドライバーのインストール](https://learn.microsoft.com/ja-jp/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server)
-- [Streamlit ドキュメント](https://docs.streamlit.io/)
+- [Flask ドキュメント](https://flask.palletsprojects.com/)
+- [gunicorn ドキュメント](https://docs.gunicorn.org/)
 - [移植元リポジトリ（Flask + MySQL 版）](https://github.com/m-oka-system/python-flask-mysql-todo)
