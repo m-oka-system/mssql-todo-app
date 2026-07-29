@@ -1,0 +1,35 @@
+# Terraform
+
+# 作業ディレクトリ
+.terraform/
+
+# Terraform State
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+
+# plan の保存結果
+*.tfplan
+*.tfplan.*
+
+# クラッシュログ
+crash.log
+crash.*.log
+
+# 変数ファイル
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# 上書き用
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI の設定
+.terraformrc
+terraform.rc
+
+# 依存ロックファイル
+.terraform.lock.hcl
