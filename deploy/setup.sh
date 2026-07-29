@@ -108,7 +108,18 @@ ACCEPT_EULA=Y apt_get install -y msodbcsql18
 log "nginx を導入します"
 apt_get install -y nginx
 
-#### 3. uv の導入
+#### 3. エディタの導入
+
+log "エディタ（micro）を導入します"
+# 接続情報を記入するために使います。vi や nano と違い、保存が Ctrl+S、終了が
+# Ctrl+Q で、モードもメタキーの表記もありません。受講者が最初につまずく箇所を
+# 減らすために入れます。
+#   --no-install-recommends  推奨パッケージの xclip（X11 一式を引き込みます）を避けます
+# 編集中の作業ファイルを対象のディレクトリに残さないため、中断しても
+# 次回そのまま開けます（vi や nano の .swp が残る問題が起きません）
+apt_get install -y --no-install-recommends micro
+
+#### 4. uv の導入
 
 INSTALLED_UV_VERSION=""
 if [ -x "$UV_BIN" ]; then
@@ -128,7 +139,7 @@ else
         env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 fi
 
-#### 4. 実行ユーザーの作成
+#### 5. 実行ユーザーの作成
 
 log "実行ユーザー ${APP_USER} を作成します"
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
@@ -137,14 +148,15 @@ if ! id -u "$APP_USER" >/dev/null 2>&1; then
     useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
 fi
 
-#### 5. アプリの配置
+#### 6. アプリの配置
 
 log "アプリを ${APP_DIR} に配置します"
 mkdir -p "$APP_DIR/src/templates"
 # 配置するファイルを列挙します。何が VM へ渡るのかが一目で分かります。
 # アプリのソースは src/ 配下、uv プロジェクトの定義は $APP_DIR の直下です。
-# src/.env は列挙しません。転送物に混ざっていても、VM で記入済みの
-# src/.env を上書きしないためです（作成は下の if で行います）
+# src/.env は列挙しません。.gitignore の対象のため clone した $REPO_DIR には
+# 存在しませんが、手で作られていても記入済みの src/.env を上書きしないためです
+# （作成は下の if で行います）
 cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
 cp "$REPO_DIR/src/templates/index.html" "$REPO_DIR/src/templates/error.html" \
     "$APP_DIR/src/templates/"
@@ -159,7 +171,7 @@ chown -R "${APP_USER}:${APP_USER}" "$APP_DIR"
 # 接続情報を含むため、所有者だけが読み書きできる権限にします
 chmod 600 "$APP_DIR/src/.env"
 
-#### 6. 依存パッケージのインストール
+#### 7. 依存パッケージのインストール
 
 log "依存パッケージをインストールします"
 # HOME を明示して、uv のキャッシュと仮想環境をアプリのディレクトリに収めます。
@@ -169,7 +181,7 @@ log "依存パッケージをインストールします"
 #             サービスの初回起動時に uv が入れ直し、ここで減らした意味がなくなります
 sudo -u "$APP_USER" env HOME="$APP_DIR" "$UV_BIN" sync --frozen --no-dev --project "$APP_DIR"
 
-#### 7. 旧バージョンの残骸の削除
+#### 8. 旧バージョンの残骸の削除
 
 log "旧バージョンの残骸を削除します"
 # 依存のインストールが終わってから消します。**順序が重要です。**
@@ -190,7 +202,7 @@ rm -f "$APP_DIR/schema.sql" "$APP_DIR/src/schema.sql"
 # $APP_DIR/.env（旧版）は消しません。接続情報を含むファイルを自動で消すと、
 # 受講者が控えを失う場合があります。不要になった旨は完了メッセージで案内します
 
-#### 8. systemd サービスの設定
+#### 9. systemd サービスの設定
 
 log "systemd サービスを設定します"
 cp "$SCRIPT_DIR/todo.service" "/etc/systemd/system/${SERVICE_NAME}.service"
@@ -221,7 +233,7 @@ if ! wait_for_health "http://127.0.0.1:8000/healthz"; then
         "アプリが応答しません（http://127.0.0.1:8000/healthz）。" "$SERVICE_NAME"
 fi
 
-#### 9. nginx の設定
+#### 10. nginx の設定
 
 log "nginx を設定します"
 cp "$SCRIPT_DIR/todo.nginx.conf" /etc/nginx/sites-available/todo.conf
@@ -252,11 +264,11 @@ cat <<EOF
 次の手順を実行してください。
 
   1. この VM の送信元 IP アドレスを確認します
-       curl -s https://ifconfig.me
+       curl -s https://api.ipify.org
   2. Azure SQL Database のファイアウォール規則に、1. の IP アドレスを追加します
      （追加しないと、接続情報が正しくてもデータベースに到達できません）
-  3. 接続情報を記入します
-       sudo -u ${APP_USER} nano ${APP_DIR}/src/.env
+  3. 接続情報を記入します（保存は Ctrl+S、終了は Ctrl+Q）
+       sudo -u ${APP_USER} micro ${APP_DIR}/src/.env
   4. サービスを再起動します
        sudo systemctl restart ${SERVICE_NAME}
   5. ブラウザから VM のパブリック IP アドレスへアクセスします
