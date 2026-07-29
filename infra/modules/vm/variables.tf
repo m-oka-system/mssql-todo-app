@@ -22,7 +22,7 @@ variable "admin_username" {
 variable "vm" {
   type = map(object({
     name                            = string
-    vm_size                         = optional(string, "Standard_B2s")
+    vm_size                         = optional(string, "Standard_F1as_v7")
     zone                            = optional(string, "1")
     allow_extension_operations      = optional(bool, true)
     disable_password_authentication = optional(bool, true)

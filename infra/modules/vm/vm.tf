@@ -51,6 +51,9 @@ resource "azurerm_linux_virtual_machine" "this" {
     public_key = var.ssh_public_key
   }
 
+  priority        = "Spot"
+  max_bid_price   = -1
+  eviction_policy = "Deallocate"
 
   boot_diagnostics {}
 
