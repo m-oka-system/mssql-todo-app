@@ -1,5 +1,6 @@
 """Flask と Azure SQL Database で作る Todo アプリです。"""
 
+import logging
 import os
 import time
 from datetime import UTC, datetime, timedelta, timezone
@@ -36,15 +37,15 @@ RESUMING_SQLSTATE = "HYT00"
 # 括弧付きで付けるネイティブのエラー番号です。括弧ごと一致させます。
 # このときの SQLSTATE は HY000（一般的なエラー）で、他の障害とも共通するため使えません
 RESUMING_ERROR_NUMBER = "(40613)"
+# 同名のオブジェクトが既にあるときに返ります。SQLSTATE は 42S01 で、ネイティブの
+# エラー番号は 40613 と同じく本文の末尾へ括弧付きで付きます。どちらも実測しました
+TABLE_ALREADY_EXISTS_SQLSTATE = "42S01"
+TABLE_ALREADY_EXISTS_ERROR_NUMBER = "(2714)"
 DB_ERROR_MESSAGE = (
     "データベースに接続できません。src/.env の接続情報と、Azure SQL Database の"
     "ファイアウォール規則にクライアント IP が登録されているかを確認してください。"
     "待っても復旧しない場合は、無料 vCore 秒の残量を確認してください。"
     "枯渇による停止は翌月まで再開しません。"
-)
-SCHEMA_MISSING_MESSAGE = (
-    "テーブル dbo.todos がありません。src/schema.sql を実行してから、"
-    "この画面を再読み込みしてください。"
 )
 
 # 引数なしの load_dotenv() はカレントディレクトリから上へ探索するため、
@@ -52,9 +53,13 @@ SCHEMA_MISSING_MESSAGE = (
 load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__)
+# debug が無効のとき、Flask は app.logger にレベルを設定しません。実効レベルは
+# root の既定（WARNING）になり、info() は捨てられます。gunicorn も --log-config を
+# 渡さない限り root を変えないため、明示しないと journal に 1 行も残りません
+app.logger.setLevel(logging.INFO)
 
 _engine: Engine | None = None
-_table_verified = False
+_table_created = False
 
 
 @app.before_request
@@ -115,6 +120,18 @@ def is_resuming_error(error: DBAPIError) -> bool:
     return sqlstate == RESUMING_SQLSTATE or RESUMING_ERROR_NUMBER in str(error.orig)
 
 
+def is_table_already_exists_error(error: DBAPIError) -> bool:
+    """同名のオブジェクトが既にあるエラーかどうかを判定します。"""
+    # 両方が一致したときだけ真にします。is_resuming_error() がどちらか一方で
+    # 真になるのは、HYT00 と 40613 が別々のエラーだからです。こちらは 1 つの
+    # エラーが持つ 2 つの属性なので、両方を確かめます。本文だけで判定すると、
+    # 括弧付きの数字を名前に含む利用者の別のエラーまで拾ってしまいます
+    sqlstate = error.orig.args[0] if error.orig.args else ""
+    return sqlstate == TABLE_ALREADY_EXISTS_SQLSTATE and TABLE_ALREADY_EXISTS_ERROR_NUMBER in str(
+        error.orig
+    )
+
+
 def connect_with_retry(engine: Engine) -> Connection:
     """接続の確立だけを再試行します。SQL の実行後は再試行しません。"""
     # SQL の実行まで再試行すると、INSERT がコミット済みで応答だけ失われた場合に
@@ -141,19 +158,37 @@ def execute_sql(sql: str, params: dict | None = None, *, fetch: bool = False) ->
         return result.all() if fetch else None
 
 
-def table_exists() -> bool:
-    """dbo.todos が存在するかを確認します。"""
-    global _table_verified
-    # 接続をプールしないため、確認のたびに ODBC のログインが 1 回増えます。
-    # 一度あることを確認できたら以降は問い合わせません。「ない」結果は覚えないので、
-    # schema.sql を実行したあとは次の再読み込みで反映されます
-    if _table_verified:
-        return True
-    # 例外の種類では判定しません。ProgrammingError には構文エラーや列名の誤りも
-    # 含まれるため、「テーブルがない」と誤って案内する可能性があります
-    rows = execute_sql("SELECT OBJECT_ID(N'dbo.todos', N'U') AS object_id", fetch=True)
-    _table_verified = rows[0].object_id is not None
-    return _table_verified
+def create_table_if_missing() -> None:
+    """dbo.todos がなければ作成します。"""
+    global _table_created
+    # 接続をプールしないため、実行のたびに ODBC のログインが 1 回増えます。
+    # 一度作成できたら、以降は問い合わせません
+    if _table_created:
+        return
+    try:
+        # SQL Server には CREATE TABLE IF NOT EXISTS がないため、OBJECT_ID で
+        # 存在を確認します。第 2 引数の N'U' は「ユーザーテーブル」を意味します
+        execute_sql("""
+            IF OBJECT_ID(N'dbo.todos', N'U') IS NULL
+            CREATE TABLE dbo.todos (
+                id         INT IDENTITY(1,1) PRIMARY KEY,
+                title      NVARCHAR(255) NOT NULL,
+                completed  BIT NOT NULL DEFAULT 0,
+                -- SYSUTCDATETIME() は UTC を返します。表示するときに JST へ変換します
+                created_at DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()
+            )
+        """)
+    except DBAPIError as e:
+        # 存在確認と CREATE TABLE は原子的ではありません。複数の VM やワーカーが
+        # 同時に起動すると、両方が「ない」と判断して作成へ進みます。後になった側は
+        # 2714 を受け取りますが、テーブルはできているため成功として扱います
+        if not is_table_already_exists_error(e):
+            raise
+    # 既にテーブルがある場合もここを通ります。目的は「どのデータベースに対して
+    # 確認したか」を残すことです。DB_NAME を取り違えても、そちらにテーブルが
+    # 作られて画面は正常に見えるため、気づける手掛かりがここだけになります
+    app.logger.info("テーブル dbo.todos を確認しました（データベース: %s）", os.environ["DB_NAME"])
+    _table_created = True
 
 
 def fetch_todos() -> list:
@@ -207,8 +242,7 @@ def to_display_todos(rows: list) -> list[dict]:
 def render_todo_list(error: str | None = None, status: int = 200) -> tuple[str, int]:
     """Todo の一覧を描画します。入力を拒否したときはメッセージと HTTP 400 を渡します。"""
     try:
-        if not table_exists():
-            return render_template("error.html", message=SCHEMA_MISSING_MESSAGE), 503
+        create_table_if_missing()
         todos = to_display_todos(fetch_todos())
     except Exception:
         # 例外の詳細はサーバーログにだけ記録します。ODBC のエラーメッセージには

@@ -102,9 +102,6 @@ rm -f "$REPO_DEB"
 apt_get update
 # ACCEPT_EULA=Y を付けないと、ライセンス同意のプロンプトで止まります
 ACCEPT_EULA=Y apt_get install -y msodbcsql18
-# schema.sql を VM から適用できるように sqlcmd も入れます。
-# PATH には入らないため、/opt/mssql-tools18/bin/sqlcmd と絶対パスで実行します
-ACCEPT_EULA=Y apt_get install -y mssql-tools18
 
 #### 2. nginx の導入
 
@@ -148,7 +145,7 @@ mkdir -p "$APP_DIR/src/templates"
 # アプリのソースは src/ 配下、uv プロジェクトの定義は $APP_DIR の直下です。
 # src/.env は列挙しません。転送物に混ざっていても、VM で記入済みの
 # src/.env を上書きしないためです（作成は下の if で行います）
-cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/schema.sql" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
+cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
 cp "$REPO_DIR/src/templates/index.html" "$REPO_DIR/src/templates/error.html" \
     "$APP_DIR/src/templates/"
 cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
@@ -184,9 +181,12 @@ log "旧バージョンの残骸を削除します"
 # 記入済みの .env や作成済みの .venv まで消してしまいます
 rm -f "$APP_DIR/app.py"
 rm -rf "$APP_DIR/.streamlit"
-# schema.sql と .env.sample は src/ 配下へ移りました。直下に残ると同じ内容が
-# 2 か所に並び、受講者がどちらを使うのか迷います
-rm -f "$APP_DIR/schema.sql" "$APP_DIR/.env.sample"
+# .env.sample は src/ 配下へ移りました。直下に残ると同じ内容が 2 か所に並び、
+# 受講者がどちらを使うのか迷います
+rm -f "$APP_DIR/.env.sample"
+# schema.sql は配布しません。アプリがテーブルを作成するようになったためです。
+# 旧バージョンから更新した VM に残っていると、手で実行する手順があるように見えます
+rm -f "$APP_DIR/schema.sql" "$APP_DIR/src/schema.sql"
 # $APP_DIR/.env（旧版）は消しません。接続情報を含むファイルを自動で消すと、
 # 受講者が控えを失う場合があります。不要になった旨は完了メッセージで案内します
 
@@ -260,10 +260,7 @@ cat <<EOF
   4. サービスを再起動します
        sudo systemctl restart ${SERVICE_NAME}
   5. ブラウザから VM のパブリック IP アドレスへアクセスします
-
-テーブルをこの VM から作成する場合（開発 PC で実行済みなら不要です）:
-  /opt/mssql-tools18/bin/sqlcmd -S <サーバー名>.database.windows.net \\
-      -d <データベース名> -U <管理者ユーザー> -i ${APP_DIR}/src/schema.sql
+     （テーブルは最初のアクセスのときにアプリが作成します）
 
 ログを確認するコマンド:
   sudo journalctl -u ${SERVICE_NAME} -f
