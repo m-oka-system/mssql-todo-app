@@ -6,11 +6,6 @@ resource "random_string" "suffix" {
   special = false
 }
 
-# resource "azurerm_resource_group" "rg" {
-#   name     = "rg"
-#   location = var.location
-# }
-
 data "azurerm_resource_group" "this" {
   name = var.resource_group_name
 }
@@ -56,6 +51,13 @@ module "ssh_public_key" {
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   name                = "sshkey-vm"
+}
+
+# SSH 秘密鍵をローカルへ保存する
+resource "local_sensitive_file" "ssh_private_key" {
+  content         = module.ssh_public_key.private_key_pem
+  filename        = pathexpand("~/.ssh/ssh-key.pem")
+  file_permission = "0400"
 }
 
 module "vm" {

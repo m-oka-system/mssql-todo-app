@@ -5,3 +5,7 @@ output "vm_public_ip" {
 output "vm_network_interface" {
   value = azurerm_network_interface.this
 }
+
+output "admin_username" {
+  value = var.admin_username
+}
