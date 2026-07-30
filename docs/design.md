@@ -100,7 +100,7 @@ mssql-todo-app/
 ├── docs/
 │   ├── requirements.md     # 要件定義書
 │   └── design.md           # 設計書（本書）
-├── infra/                  # Terraform（VM を作る側の構成）
+├── infra/                  # Terraform（VM と SQL Database を作る側の構成）
 ├── src/
 │   ├── app.py              # アプリ本体
 │   ├── .env.sample         # 接続情報のテンプレート
