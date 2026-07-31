@@ -155,7 +155,7 @@ mkdir -p "$APP_DIR/src/templates"
 # src/.env は列挙しない。.gitignore の対象のため clone した $REPO_DIR には存在しないが、手で作られていても記入済みの src/.env を上書きしないため（作成は下の if で行う）
 cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
 cp "$REPO_DIR/src/templates/index.html" "$REPO_DIR/src/templates/error.html" \
-    "$APP_DIR/src/templates/"
+    "$REPO_DIR/src/templates/debug_info.html" "$APP_DIR/src/templates/"
 cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
 
 # 既にある .env は上書きしない。接続情報を記入したあとに再実行しても消えない
