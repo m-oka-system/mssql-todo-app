@@ -2,6 +2,7 @@
 
 import logging
 import os
+import socket
 import time
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +21,8 @@ pyodbc.pooling = False
 BASE_DIR = Path(__file__).resolve().parent
 JST = timezone(timedelta(hours=9))
 TITLE_MAX_LENGTH = 255  # DB の列長 NVARCHAR(255) と一致させる
+# 経路表を引くためだけに使う宛先。文書用に予約されたアドレスで実在しない（RFC 5737）
+PRIVATE_IP_PROBE_ADDRESS = ("192.0.2.1", 1)
 # 1 接続あたりの最悪の待ち時間は 5 × 10 秒（試行）+ 4 × 5 秒（待機）= 70 秒
 # 一覧の表示は接続を 2 回張ることがあるため、1 リクエストでは 140 秒を見込む
 # gunicorn の --timeout 150 はこの 140 秒より長くしてある
@@ -184,7 +187,8 @@ def create_table_if_missing() -> None:
         if not is_table_already_exists_error(e):
             raise
     # 既にテーブルがある場合もここを通る。目的は「どのデータベースに対して確認したか」を残すこと
-    # DB_NAME を取り違えても、そちらにテーブルが作られて画面は正常に見えるため、気づける手掛かりがここだけになる
+    # DB_NAME を取り違えても、そちらにテーブルが作られて画面は正常に見える
+    # 画面にも DB 名を出すが（F-7）、ログは接続先を変えた前後が時系列で残る点が違う
     app.logger.info("テーブル dbo.todos を確認しました（データベース: %s）", os.environ["DB_NAME"])
     _table_created = True
 
@@ -235,6 +239,51 @@ def to_display_todos(rows: list) -> list[dict]:
         }
         for row in rows
     ]
+
+
+def get_hostname() -> str:
+    """この VM 自身のホスト名を取得する"""
+    # context processor はエラー画面の描画でも走る
+    # ここで例外が出ると、案内を出すはずの 503 が汎用の 500 になる
+    try:
+        return socket.gethostname()
+    except OSError:
+        return "-"
+
+
+def get_private_ip() -> str:
+    """この VM 自身のプライベート IP を取得する"""
+    # socket.gethostbyname(socket.gethostname()) は使えない
+    # Ubuntu の /etc/hosts はホスト名へ 127.0.1.1 を割り当てるため、ループバックが返る
+    # UDP の connect() はパケットを送らない。経路表を引いて送信元アドレスが決まるだけ
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(PRIVATE_IP_PROBE_ADDRESS)
+            return sock.getsockname()[0]
+    except OSError:
+        # 経路がない環境でも画面は出す。表示できないことより、Todo が見えないことのほうが困る
+        return "-"
+
+
+def build_debug_info() -> dict:
+    """画面の下部に出す実行環境の情報を組み立てる"""
+    # DB のサーバー名・ユーザー名・パスワードは含めない
+    # HTTP 80 はインターネットへ公開しており、画面に出した値は誰でも読める
+    # DB 名だけは残す。取り違えても画面は正常に見えるため、ここが気づける手掛かりになる
+    return {
+        "hostname": get_hostname(),
+        "private_ip": get_private_ip(),
+        # .env が未記入でもエラー画面は描画するため、環境変数がない場合を "-" で通す
+        "db_name": os.environ.get("DB_NAME", "-"),
+    }
+
+
+@app.context_processor
+def inject_debug_info() -> dict:
+    """すべてのテンプレートへ実行環境の情報を渡す"""
+    # 一覧とエラー画面の両方で使う
+    # render_template() の引数で渡すと、呼び出しは 5 か所あるため、いずれかへの追加を忘れる
+    return {"debug": build_debug_info()}
 
 
 def render_todo_list(error: str | None = None, status: int = 200) -> tuple[str, int]:
