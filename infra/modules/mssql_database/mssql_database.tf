@@ -1,5 +1,3 @@
-# azapi は hashicorp ではなく Azure 名前空間のため、モジュール側でも出所を明示します。
-# 書かないと terraform init が registry.terraform.io/hashicorp/azapi を探して失敗します
 terraform {
   required_providers {
     azapi = {
@@ -9,12 +7,9 @@ terraform {
 }
 
 # 無料オファー（Free Limit）は azurerm が未対応のため azapi で作成します。
-# azurerm_mssql_database には useFreeLimit / freeLimitExhaustionBehavior に相当する
-# 引数がありません（v4.81・v5.0 のいずれでも未実装）。az CLI の --use-free-limit と
-# 同じプロパティを REST API へ直接渡します。
-#
-# 値は変数にせずリテラルで書きます。無料オファーでは変更できない項目が多く、
-# 変えられるように見せると事故につながるためです（理由は各行のコメント）
+# azurerm_mssql_database には useFreeLimit / freeLimitExhaustionBehavior に相当する引数がありません（v4.81・v5.0 のいずれでも未実装）。
+# az CLI の --use-free-limit と同じプロパティを REST API へ直接渡します。
+# 値は変数にせずリテラルで書きます。無料オファーでは変更できない項目が多く、変えられるように見せると事故につながるためです
 resource "azapi_resource" "this" {
   type      = "Microsoft.Sql/servers/databases@2025-01-01"
   name      = var.name
@@ -23,8 +18,8 @@ resource "azapi_resource" "this" {
 
   body = {
     sku = {
-      # 無料オファーはサーバーレスの General Purpose のみです。vCore 数は
-      # name ではなく capacity で指定します（GP_S_Gen5_2 のような書き方ではありません）
+      # 無料オファーはサーバーレスの General Purpose のみです。
+      # vCore 数は name ではなく capacity で指定します（GP_S_Gen5_2 のような書き方ではありません）
       name     = "GP_S_Gen5"
       tier     = "GeneralPurpose"
       family   = "Gen5"
@@ -42,7 +37,7 @@ resource "azapi_resource" "this" {
       autoPauseDelay = 60
 
       # AutoPause は「上限に達したら翌月まで停止」です。
-      # BillOverUsage にすると超過分が課金され、**同一の請求期間内は無料枠へ戻せません**
+      # BillOverUsage にすると超過分が課金され、同一の請求期間内は無料枠へ戻せません
       useFreeLimit                = true
       freeLimitExhaustionBehavior = "AutoPause"
 
@@ -51,7 +46,4 @@ resource "azapi_resource" "this" {
       zoneRedundant                    = false
     }
   }
-
-  # azurerm では確認できない項目のため、適用後の値を出力へ残します
-  response_export_values = ["properties.useFreeLimit"]
 }

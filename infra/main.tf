@@ -1,7 +1,17 @@
+# Terraform を実行している環境のグローバル IP を取得します。NSG の SSH 許可と、SQL サーバーのファイアウォール規則の両方に使います
+data "http" "my_ip" {
+  url                = "https://api.ipify.org"
+  request_timeout_ms = 10000
+
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200
+      error_message = "グローバル IP を取得できませんでした（HTTP ${self.status_code}）。"
+    }
+  }
+}
+
 locals {
-  # Cloud Shell から apply すれば Cloud Shell の送信元が入り、その
-  # セッションからそのまま SSH できます。セッションが変わって IP が
-  # 変わったら、apply し直せば NSG と SQL のファイアウォールが追随します
   terraform_client_ip = chomp(data.http.my_ip.response_body)
   allowed_client_ips  = distinct(concat([local.terraform_client_ip], var.allowed_client_ip))
 }
@@ -63,7 +73,7 @@ module "network_security_group" {
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "80"
-      source_address_prefixes    = local.allowed_client_ips
+      source_address_prefix      = "Internet"
       destination_address_prefix = "*"
     },
     {
@@ -110,29 +120,13 @@ module "vm" {
   }
 }
 
-# Terraform を実行している端末のグローバル IP です。SQL サーバーの
-# ファイアウォール規則へ登録し、ポータルのクエリ エディターから接続できるようにします
-data "http" "my_ip" {
-  url                = "https://api.ipify.org"
-  request_timeout_ms = 10000
-
-  # http プロバイダは 2xx 以外でもエラーになりません。確認しないと、エラーページの
-  # HTML がそのままファイアウォール規則へ渡り、原因の分かりにくい失敗になります
-  lifecycle {
-    postcondition {
-      condition     = self.status_code == 200
-      error_message = "グローバル IP を取得できませんでした（HTTP ${self.status_code}）。"
-    }
-  }
-}
-
 module "mssql_server" {
   source              = "./modules/mssql_server"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   name                = "sql-iaas-${random_string.suffix.result}"
 
-  # VM からの接続と、SSH を許可した端末からの接続（ポータルのクエリ エディター用）を通します
+  # VM と SSH を許可した端末からの接続（ポータルのクエリエディター用）を許可します
   firewall_rule = merge(
     {
       vm = {
@@ -156,4 +150,19 @@ module "mssql_database" {
   location  = var.location
   server_id = module.mssql_server.mssql_server_id
   name      = "todo"
+}
+
+# アプリの接続情報を src/.env へ書き出します。
+# パスワードは画面に出ないため、このファイルを開いて VM 側の /opt/todo/src/.env へ貼り付けます。
+# ローカルでアプリを動かす場合は、このまま uv run python src/app.py で使えます
+resource "local_sensitive_file" "env" {
+  filename        = abspath("${path.root}/../src/.env")
+  file_permission = "0600"
+
+  content = <<-EOT
+    DB_HOST=${module.mssql_server.fully_qualified_domain_name}
+    DB_NAME=${module.mssql_database.mssql_database_name}
+    DB_USER=${module.mssql_server.administrator_login}
+    DB_PASSWORD=${module.mssql_server.administrator_login_password}
+  EOT
 }
