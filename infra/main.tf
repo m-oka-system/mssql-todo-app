@@ -1,4 +1,4 @@
-# Terraform を実行している環境のグローバル IP を取得します。NSG の SSH 許可と、SQL サーバーのファイアウォール規則の両方に使います
+# Terraform を実行している環境のグローバル IP を取得する。NSG の SSH 許可と、SQL サーバーのファイアウォール規則の両方に使う
 data "http" "my_ip" {
   url                = "https://api.ipify.org"
   request_timeout_ms = 10000
@@ -126,7 +126,7 @@ module "mssql_server" {
   location            = var.location
   name                = "sql-iaas-${random_string.suffix.result}"
 
-  # VM と SSH を許可した端末からの接続（ポータルのクエリエディター用）を許可します
+  # VM と SSH を許可した端末からの接続（ポータルのクエリエディター用）を許可する
   firewall_rule = merge(
     {
       vm = {
@@ -152,9 +152,9 @@ module "mssql_database" {
   name      = "todo"
 }
 
-# アプリの接続情報を src/.env へ書き出します。
-# パスワードは画面に出ないため、このファイルを開いて VM 側の /opt/todo/src/.env へ貼り付けます。
-# ローカルでアプリを動かす場合は、このまま uv run python src/app.py で使えます
+# アプリの接続情報を src/.env へ書き出す
+# パスワードは画面に出ないため、このファイルを開いて VM 側の /opt/todo/src/.env へ貼り付ける
+# ローカルでアプリを動かす場合は、このまま uv run python src/app.py で使える
 resource "local_sensitive_file" "env" {
   filename        = abspath("${path.root}/../src/.env")
   file_permission = "0600"

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# Azure VM（Ubuntu 24.04 LTS）に Todo アプリを配置して起動します。
+# Azure VM（Ubuntu 24.04 LTS）に Todo アプリを配置して起動する
 #
 #   sudo ./deploy/setup.sh
 #
-# 何度実行しても同じ結果になるように書いています。
-# 記入済みの /opt/todo/src/.env は上書きしません。
+# 何度実行しても同じ結果になるように書いている
+# 記入済みの /opt/todo/src/.env は上書きしない
 
-# 途中で失敗したら、その場で止めます。
-#   -e          コマンドが失敗したら終了します
-#   -u          未定義の変数を参照したら終了します
-#   -o pipefail パイプの途中で失敗しても終了します
+# 途中で失敗したら、その場で止める
+#   -e          コマンドが失敗したら終了する
+#   -u          未定義の変数を参照したら終了する
+#   -o pipefail パイプの途中で失敗しても終了する
 set -euo pipefail
 
 UBUNTU_VERSION="24.04"
@@ -18,17 +18,17 @@ APP_USER="todo"
 APP_DIR="/opt/todo"
 SERVICE_NAME="todo"
 UV_BIN="/usr/local/bin/uv"
-# 開発環境と同じバージョンに固定します。uv.lock を作ったのもこのバージョンです。
-# 最新版を取りに行くと、実行した日によって VM の状態が変わります
+# 開発環境と同じバージョンに固定する。uv.lock を作ったのもこのバージョン
+# 最新版を取りに行くと、実行した日によって VM の状態が変わる
 UV_VERSION="0.9.18"
-# 2 秒間隔で 15 回試し、最大 30 秒待ってから失敗と判定します
+# 2 秒間隔で 15 回試し、最大 30 秒待ってから失敗と判定する
 HEALTH_CHECK_ATTEMPTS=15
 HEALTH_CHECK_INTERVAL=2
 
-# apt がライセンス同意などの対話プロンプトで止まらないようにします
+# apt がライセンス同意などの対話プロンプトで止まらないようにする
 export DEBIAN_FRONTEND=noninteractive
 
-# このスクリプトが置かれた deploy/ の親が、リポジトリのルートです
+# このスクリプトが置かれた deploy/ の親が、リポジトリのルート
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -36,15 +36,15 @@ log() {
     echo "==> $*"
 }
 
-# Azure の Ubuntu イメージは起動直後に unattended-upgrades が走ります。素の apt-get は
-# dpkg のロックを取れずに即座に失敗し、set -e でスクリプトがそこで止まります。
-# ロックが空くまで最大 600 秒待たせるため、apt-get はこの関数を通して呼びます
+# Azure の Ubuntu イメージは起動直後に unattended-upgrades が走る
+# 素の apt-get は dpkg のロックを取れずに即座に失敗し、set -e でスクリプトがそこで止まる
+# ロックが空くまで最大 600 秒待たせるため、apt-get はこの関数を通して呼ぶ
 apt_get() {
     apt-get -o DPkg::Lock::Timeout=600 "$@"
 }
 
-# 起動に失敗したときの案内です。画面にはエラーの詳細を出さない設計のため、
-# ログの見方を伝えないと受講者が行き詰まります
+# 起動に失敗したときの案内
+# 画面にはエラーの詳細を出さない設計のため、ログの見方を伝えないと受講者が行き詰まる
 abort_with_log_hint() {
     echo "" >&2
     echo "$1" >&2
@@ -53,13 +53,13 @@ abort_with_log_hint() {
     exit 1
 }
 
-# 応答を返すまで待ちます。固定の sleep では、VM の性能や初回起動の差で足りません
+# 応答を返すまで待つ。固定の sleep では、VM の性能や初回起動の差で足りない
 wait_for_health() {
     local url="$1"
     local attempt=1
     while [ "$attempt" -le "$HEALTH_CHECK_ATTEMPTS" ]; do
-        # アプリの /healthz は、要求を受け付けられる状態のとき本文に ok を返します。
-        # DB には触らないため、接続情報が未記入でも 200 が返ります
+        # アプリの /healthz は、要求を受け付けられる状態のとき本文に ok を返す
+        # DB には触らないため、接続情報が未記入でも 200 が返る
         if [ "$(curl -s --max-time 2 "$url")" = "ok" ]; then
             return 0
         fi
@@ -79,8 +79,8 @@ fi
 # shellcheck source=/dev/null
 . /etc/os-release
 
-# ODBC Driver 18 のリポジトリ URL は Ubuntu のバージョンごとに分かれています。
-# 対象外のバージョンで実行すると、存在しない URL を取得して失敗します
+# ODBC Driver 18 のリポジトリ URL は Ubuntu のバージョンごとに分かれている
+# 対象外のバージョンで実行すると、存在しない URL を取得して失敗する
 if [ "${ID:-}" != "ubuntu" ] || [ "${VERSION_ID:-}" != "$UBUNTU_VERSION" ]; then
     echo "このスクリプトは Ubuntu ${UBUNTU_VERSION} 専用です（検出: ${PRETTY_NAME:-不明}）。" >&2
     exit 1
@@ -92,7 +92,7 @@ log "ODBC Driver 18 を導入します"
 apt_get update
 apt_get install -y curl ca-certificates
 
-# Microsoft のリポジトリ定義と署名鍵を、1 つのパッケージでまとめて登録します
+# Microsoft のリポジトリ定義と署名鍵を、1 つのパッケージでまとめて登録する
 REPO_DEB="$(mktemp --suffix=.deb)"
 curl -sSLf -o "$REPO_DEB" \
     "https://packages.microsoft.com/config/ubuntu/${UBUNTU_VERSION}/packages-microsoft-prod.deb"
@@ -100,7 +100,7 @@ dpkg -i "$REPO_DEB"
 rm -f "$REPO_DEB"
 
 apt_get update
-# ACCEPT_EULA=Y を付けないと、ライセンス同意のプロンプトで止まります
+# ACCEPT_EULA=Y を付けないと、ライセンス同意のプロンプトで止まる
 ACCEPT_EULA=Y apt_get install -y msodbcsql18
 
 #### 2. nginx の導入
@@ -111,19 +111,18 @@ apt_get install -y nginx
 #### 3. エディタの導入
 
 log "エディタ（micro）を導入します"
-# 接続情報を記入するために使います。vi や nano と違い、保存が Ctrl+S、終了が
-# Ctrl+Q で、モードもメタキーの表記もありません。受講者が最初につまずく箇所を
-# 減らすために入れます。
-#   --no-install-recommends  推奨パッケージの xclip（X11 一式を引き込みます）を避けます
-# 編集中の作業ファイルを対象のディレクトリに残さないため、中断しても
-# 次回そのまま開けます（vi や nano の .swp が残る問題が起きません）
+# 接続情報を記入するために使う
+# vi や nano と違い、保存が Ctrl+S、終了が Ctrl+Q で、モードもメタキーの表記もない
+# 受講者が最初につまずく箇所を減らすために入れる
+#   --no-install-recommends  推奨パッケージの xclip（X11 一式を引き込む）を避ける
+# 編集中の作業ファイルを対象のディレクトリに残さないため、中断しても次回そのまま開ける（vi や nano の .swp が残る問題が起きない）
 apt_get install -y --no-install-recommends micro
 
 #### 4. uv の導入
 
 INSTALLED_UV_VERSION=""
 if [ -x "$UV_BIN" ]; then
-    # uv --version は「uv 0.9.18 (...)」の形で出力します
+    # uv --version は「uv 0.9.18 (...)」の形で出力する
     INSTALLED_UV_VERSION="$("$UV_BIN" --version | awk '{print $2}')"
 fi
 
@@ -131,10 +130,9 @@ if [ "$INSTALLED_UV_VERSION" = "$UV_VERSION" ]; then
     log "uv ${UV_VERSION} は導入済みです"
 else
     log "uv ${UV_VERSION} を導入します"
-    # UV_INSTALL_DIR で全ユーザーから使える場所に入れます。既定の入れ先は実行ユーザーの
-    # ホームで、systemd から起動するサービスからは見えません。
-    # UV_NO_MODIFY_PATH=1 は、インストーラが PATH 設定用の env スクリプトを
-    # /usr/local/bin/env に作り、/usr/bin/env を隠してしまうのを防ぎます
+    # UV_INSTALL_DIR で全ユーザーから使える場所に入れる
+    # 既定の入れ先は実行ユーザーのホームで、systemd から起動するサービスからは見えない
+    # UV_NO_MODIFY_PATH=1 は、インストーラが PATH 設定用の env スクリプトを /usr/local/bin/env に作り、/usr/bin/env を隠してしまうのを防ぐ
     curl -sSLf "https://astral.sh/uv/${UV_VERSION}/install.sh" |
         env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 fi
@@ -143,8 +141,8 @@ fi
 
 log "実行ユーザー ${APP_USER} を作成します"
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
-    # root では動かさないため、ログインシェルを持たないシステムユーザーを用意します。
-    # ホームをアプリのディレクトリに合わせ、uv のキャッシュもそこへ置きます
+    # root では動かさないため、ログインシェルを持たないシステムユーザーを用意する
+    # ホームをアプリのディレクトリに合わせ、uv のキャッシュもそこへ置く
     useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
 fi
 
@@ -152,55 +150,52 @@ fi
 
 log "アプリを ${APP_DIR} に配置します"
 mkdir -p "$APP_DIR/src/templates"
-# 配置するファイルを列挙します。何が VM へ渡るのかが一目で分かります。
-# アプリのソースは src/ 配下、uv プロジェクトの定義は $APP_DIR の直下です。
-# src/.env は列挙しません。.gitignore の対象のため clone した $REPO_DIR には
-# 存在しませんが、手で作られていても記入済みの src/.env を上書きしないためです
-# （作成は下の if で行います）
+# 配置するファイルを列挙する。何が VM へ渡るのかが一目で分かる
+# アプリのソースは src/ 配下、uv プロジェクトの定義は $APP_DIR の直下
+# src/.env は列挙しない。.gitignore の対象のため clone した $REPO_DIR には存在しないが、手で作られていても記入済みの src/.env を上書きしないため（作成は下の if で行う）
 cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
 cp "$REPO_DIR/src/templates/index.html" "$REPO_DIR/src/templates/error.html" \
     "$APP_DIR/src/templates/"
 cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
 
-# 既にある .env は上書きしません。接続情報を記入したあとに再実行しても消えません
+# 既にある .env は上書きしない。接続情報を記入したあとに再実行しても消えない
 if [ ! -f "$APP_DIR/src/.env" ]; then
     cp "$REPO_DIR/src/.env.sample" "$APP_DIR/src/.env"
 fi
 
 chown -R "${APP_USER}:${APP_USER}" "$APP_DIR"
-# 接続情報を含むため、所有者だけが読み書きできる権限にします
+# 接続情報を含むため、所有者だけが読み書きできる権限にする
 chmod 600 "$APP_DIR/src/.env"
 
 #### 7. 依存パッケージのインストール
 
 log "依存パッケージをインストールします"
-# HOME を明示して、uv のキャッシュと仮想環境をアプリのディレクトリに収めます。
-#   --frozen  uv.lock のバージョンをそのまま使います
-#   --no-dev  ruff と pytest を入れません。VM では使わないためです。
-#             todo.service の uv run 側にも同じ指定が必要です。片方だけだと、
-#             サービスの初回起動時に uv が入れ直し、ここで減らした意味がなくなります
+# HOME を明示して、uv のキャッシュと仮想環境をアプリのディレクトリに収める
+#   --frozen  uv.lock のバージョンをそのまま使う
+#   --no-dev  ruff と pytest を入れない。VM では使わないため
+#             todo.service の uv run 側にも同じ指定が必要。片方だけだと、
+#             サービスの初回起動時に uv が入れ直し、ここで減らした意味がなくなる
 sudo -u "$APP_USER" env HOME="$APP_DIR" "$UV_BIN" sync --frozen --no-dev --project "$APP_DIR"
 
 #### 8. 旧バージョンの残骸の削除
 
 log "旧バージョンの残骸を削除します"
-# 依存のインストールが終わってから消します。**順序が重要です。**
-# 先に消すと、set -e で uv sync が失敗したときに次の systemd unit の差し替えへ進めず、
-# 旧 unit（ExecStart に streamlit run app.py を持つ）が削除済みのファイルを指したまま
-# 残ります。動いていたサービスが二度と起動しない状態になります。
+# 依存のインストールが終わってから消す。順序が重要
+# 先に消すと、set -e で uv sync が失敗したときに次の systemd unit の差し替えへ進めず、旧 unit（ExecStart に streamlit run app.py を持つ）が削除済みのファイルを指したまま残る
+# 動いていたサービスが二度と起動しない状態になる
 #
-# 消す対象は 1 つずつ列挙します。rm -rf "$APP_DIR" のようなまとめ消しは、
-# 記入済みの .env や作成済みの .venv まで消してしまいます
+# 消す対象は 1 つずつ列挙する
+# rm -rf "$APP_DIR" のようなまとめ消しは、記入済みの .env や作成済みの .venv まで消してしまう
 rm -f "$APP_DIR/app.py"
 rm -rf "$APP_DIR/.streamlit"
-# .env.sample は src/ 配下へ移りました。直下に残ると同じ内容が 2 か所に並び、
-# 受講者がどちらを使うのか迷います
+# .env.sample は src/ 配下へ移った
+# 直下に残ると同じ内容が 2 か所に並び、受講者がどちらを使うのか迷う
 rm -f "$APP_DIR/.env.sample"
-# schema.sql は配布しません。アプリがテーブルを作成するようになったためです。
-# 旧バージョンから更新した VM に残っていると、手で実行する手順があるように見えます
+# schema.sql は配布しない。アプリがテーブルを作成するようになったため
+# 旧バージョンから更新した VM に残っていると、手で実行する手順があるように見える
 rm -f "$APP_DIR/schema.sql" "$APP_DIR/src/schema.sql"
-# $APP_DIR/.env（旧版）は消しません。接続情報を含むファイルを自動で消すと、
-# 受講者が控えを失う場合があります。不要になった旨は完了メッセージで案内します
+# $APP_DIR/.env（旧版）は消さない
+# 接続情報を含むファイルを自動で消すと、受講者が控えを失う場合がある。不要になった旨は完了メッセージで案内する
 
 #### 9. systemd サービスの設定
 
@@ -208,26 +203,26 @@ log "systemd サービスを設定します"
 cp "$SCRIPT_DIR/todo.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}.service"
-# 直前の起動が短時間に 5 回失敗していると start-limit-hit になり、restart そのものが
-# 拒否されます。daemon-reload では回数が消えないため、明示的に解除します。
-# これがないと、app.py を直して再実行しても復旧できません
+# 直前の起動が短時間に 5 回失敗していると start-limit-hit になり、restart そのものが拒否される
+# daemon-reload では回数が消えないため、明示的に解除する
+# これがないと、app.py を直して再実行しても復旧できない
 systemctl reset-failed "${SERVICE_NAME}.service" 2>/dev/null || true
 
-# 再実行したときに更新後の src/app.py を読み込ませるため、start ではなく restart します。
-# 失敗したときは set -e でそのまま終わらせず、ログの見方を案内してから止めます
+# 再実行したときに更新後の src/app.py を読み込ませるため、start ではなく restart する
+# 失敗したときは set -e でそのまま終わらせず、ログの見方を案内してから止める
 systemctl restart "${SERVICE_NAME}.service" ||
     abort_with_log_hint "サービス ${SERVICE_NAME} を起動できませんでした。" "$SERVICE_NAME"
 
-# restart の成功は、ExecStart のプロセスを起動できたことしか示しません。直後に終了しても
-# Restart=always が 5 秒ごとに起動し直すため、失敗が再起動のループに隠れます。
-# 実際に応答するところまで確かめてから次へ進みます
+# restart の成功は、ExecStart のプロセスを起動できたことしか示さない
+# 直後に終了しても Restart=always が 5 秒ごとに起動し直すため、失敗が再起動のループに隠れる
+# 実際に応答するところまで確かめてから次へ進む
 if ! systemctl is-active --quiet "${SERVICE_NAME}.service"; then
     abort_with_log_hint "サービス ${SERVICE_NAME} が起動していません。" "$SERVICE_NAME"
 fi
 
 log "アプリの応答を待ちます（最大 $((HEALTH_CHECK_ATTEMPTS * HEALTH_CHECK_INTERVAL)) 秒）"
-# 確認先は / ではなく /healthz です。/ はデータベースに接続するため、この時点では
-# .env が未記入で 503 が返り、正しくセットアップできてもここで失敗扱いになります
+# 確認先は / ではなく /healthz
+# / はデータベースに接続するため、この時点では .env が未記入で 503 が返り、正しくセットアップできてもここで失敗扱いになる
 if ! wait_for_health "http://127.0.0.1:8000/healthz"; then
     abort_with_log_hint \
         "アプリが応答しません（http://127.0.0.1:8000/healthz）。" "$SERVICE_NAME"
@@ -238,7 +233,7 @@ fi
 log "nginx を設定します"
 cp "$SCRIPT_DIR/todo.nginx.conf" /etc/nginx/sites-available/todo.conf
 ln -sfn /etc/nginx/sites-available/todo.conf /etc/nginx/sites-enabled/todo.conf
-# 既定のサイトも default_server を宣言しているため、残すと設定検査で衝突します
+# 既定のサイトも default_server を宣言しているため、残すと設定検査で衝突する
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable nginx
@@ -249,8 +244,8 @@ if ! systemctl is-active --quiet nginx; then
 fi
 
 log "nginx 経由の応答を確認します"
-# 80 番から同じ /healthz に届けば、nginx から gunicorn への経路が通っています。
-# ここも / は使いません（.env 未記入の状態では 503 になります）
+# 80 番から同じ /healthz に届けば、nginx から gunicorn への経路が通っている
+# ここも / は使わない（.env 未記入の状態では 503 になる）
 if ! wait_for_health "http://127.0.0.1/healthz"; then
     abort_with_log_hint \
         "nginx 経由でアプリに到達できません（http://127.0.0.1/healthz）。" "nginx"
@@ -278,7 +273,7 @@ cat <<EOF
   sudo journalctl -u ${SERVICE_NAME} -f
 EOF
 
-# 旧版が置いていった .env は、接続情報を含むため自動では消しません
+# 旧版が置いていった .env は、接続情報を含むため自動では消さない
 if [ -f "$APP_DIR/.env" ]; then
     cat <<EOF
 
