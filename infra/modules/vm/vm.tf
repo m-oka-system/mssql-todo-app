@@ -43,7 +43,7 @@ resource "azurerm_linux_virtual_machine" "this" {
 
   # アプリを入れない構成では、nginx だけを導入して VM の疎通を確認できるようにする
   # install_app = true のときは deploy/setup.sh が nginx も入れるため使わない
-  custom_data = var.install_app ? null : filebase64("${path.module}/userdata.sh")
+  custom_data = var.install_app ? null : filebase64("${path.module}/cloud-init.yaml")
 
   network_interface_ids = [
     azurerm_network_interface.this[each.key].id,
