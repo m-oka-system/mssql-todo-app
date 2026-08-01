@@ -95,13 +95,13 @@ module "ssh_public_key" {
   source              = "./modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
-  name                = "sshkey-vm"
+  name                = "sshkey-vm-${random_string.suffix.result}"
 }
 
 # SSH 秘密鍵をローカルへ保存する
 resource "local_sensitive_file" "ssh_private_key" {
   content         = module.ssh_public_key.private_key_pem
-  filename        = pathexpand("~/.ssh/ssh-key.pem")
+  filename        = pathexpand("~/.ssh/ssh-key-${random_string.suffix.result}.pem")
   file_permission = "0400"
 }
 
