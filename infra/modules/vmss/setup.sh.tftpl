@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# 拡張機能（CustomScript）が各 VM で実行する
+#
+# このファイルは infra/modules/vm/setup.sh.tftpl と同じ内容を持つ
+# シンボリックリンクにすると Windows で clone したときに実体を失うため、あえて二重に置く
+# 変更するときは両方を直す
+#
+# このファイルは Terraform の templatefile() で展開する
+# bash の変数を使う場合は $${VAR} と書く。$${} でないと Terraform が先に解釈する
+set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+
+# git をインストールする
+apt-get update
+apt-get install -y git
+
+# 手順書と同じ範囲を一時ディレクトリへ取得する
+# setup.sh が /opt/todo へコピーを済ませれば用済みのため、残さない
+# 使い捨ての環境で、VM 上で git pull して更新する運用を想定しないため
+repo_dir="$(mktemp -d)"
+git clone --depth 1 --sparse ${app_repository_url} "$repo_dir"
+cd "$repo_dir"
+git sparse-checkout set src deploy
+
+# ODBC ドライバ・nginx・uv の導入から systemd への登録までを行う
+# 接続情報がなくても完走する。起動確認は DB に触らない /healthz で行うため
+"$repo_dir/deploy/setup.sh"
+
+# 接続情報を書き込む
+# 引数ではなく標準入力で渡す。ps の出力に残さないため
+# install コマンドを使用して書き込みと所有者・パーミッションの設定を同時に行う
+install -o todo -g todo -m 600 /dev/stdin /opt/todo/src/.env <<'ENVFILE'
+DB_HOST=${db_host}
+DB_NAME=${db_name}
+DB_USER=${db_user}
+DB_PASSWORD=${db_password}
+ENVFILE
+
+# .env は起動時に読み込まれるため、書き込んだあとに再起動する
+systemctl restart todo
+
+# 取得したリポジトリを削除する。アプリの本体は /opt/todo にコピー済みのため
+# 途中で失敗した場合は削除まで到達せず、調査のために残る
+cd /
+rm -rf "$repo_dir"

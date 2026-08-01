@@ -149,13 +149,15 @@ fi
 #### 6. アプリの配置
 
 log "アプリを ${APP_DIR} に配置します"
-mkdir -p "$APP_DIR/src/templates"
-# 配置するファイルを列挙する。何が VM へ渡るのかが一目で分かる
-# アプリのソースは src/ 配下、uv プロジェクトの定義は $APP_DIR の直下
-# src/.env は列挙しない。.gitignore の対象のため clone した $REPO_DIR には存在しないが、手で作られていても記入済みの src/.env を上書きしないため（作成は下の if で行う）
-cp "$REPO_DIR/src/app.py" "$REPO_DIR/src/.env.sample" "$APP_DIR/src/"
-cp "$REPO_DIR/src/templates/index.html" "$REPO_DIR/src/templates/error.html" \
-    "$REPO_DIR/src/templates/debug_info.html" "$APP_DIR/src/templates/"
+mkdir -p "$APP_DIR/src"
+# src/ はディレクトリごとコピーする
+# 以前はファイルを 1 つずつ列挙していたが、テンプレートを追加したときに書き足し忘れ、VM でだけ 500 になった
+# ローカル実行もテストも src/ を直接読むため、この漏れは実機でしか分からない
+#
+# 記入済みの .env は残る。コピー元は clone したリポジトリで、.gitignore の対象の .env を含まないため
+# cp はコピー元にないファイルを消さない
+cp -r "$REPO_DIR/src/." "$APP_DIR/src/"
+# リポジトリ直下は列挙する。docs/ や infra/ など、アプリの実行に要らないものが混ざるため
 cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
 
 # 既にある .env は上書きしない。接続情報を記入したあとに再実行しても消えない
