@@ -270,13 +270,72 @@ http://<VM のパブリック IP>
 
 **画面が表示されない場合は**[トラブルシュートの「ブラウザから VM にアクセスできない」](docs/troubleshooting.md#ブラウザから-vm-にアクセスできない)を確認してください。
 
+## Terraform で環境を再現する
+
+**2 回目以降は、手順 2 から 11 までを Terraform で自動化できます。** ここまでの手順で構築の流れを理解したあと、別のセクションで同じ環境を作り直す場合に使います。**手順 12 の確認だけは手で行います。**
+
+リソースグループを作成してから、Cloud Shell で実行します。**手順 8 とは違い、`infra/` が必要なためリポジトリ全体を取得します。**
+
+```bash
+rm -rf ~/mssql-todo-app
+git clone --depth 1 https://github.com/m-oka-system/mssql-todo-app.git ~/mssql-todo-app
+cd ~/mssql-todo-app/infra
+terraform init
+terraform apply -var="resource_group_name=<リソースグループ名>"
+```
+
+**`rm -rf` を先に実行するのは、2 回目以降も同じ手順で始められるようにするためです。** 既にディレクトリがあると `git clone` が失敗します。
+
+**作成から削除までを 1 つのセッションで終えてください。** Cloud Shell はストレージなし（エフェメラル）で使うため、セッションが切れると `terraform.tfstate` が消えます。**state を失うと `terraform destroy` が対象を認識できません**（復旧方法は後述します）。
+
+自動化される範囲です。
+
+| 作られるもの                               | 対応する手順 |
+| ------------------------------------------ | ------------ |
+| 仮想ネットワーク・サブネット・受信規則     | 手順 3・4    |
+| Azure SQL Database（無料オファー）         | 手順 2       |
+| SSH 鍵と VM                                | 手順 3・5    |
+| SSH の接続コマンドの出力                   | 手順 6       |
+| SQL のファイアウォール規則                 | 手順 7       |
+| アプリの取得・セットアップ・接続情報・起動 | 手順 8〜11   |
+
+**`terraform apply` が完了した時点で、アプリは応答します。** 拡張機能の完了まで Terraform が待つためです。
+
+**`terraform apply` を実行した端末の IP は自動で許可されます。** 別の端末からも接続する場合は `-var='allowed_client_ip=["<IP>"]'` を追加します。
+
+接続先と SSH のコマンドは、次の 2 つで確認します。**`-raw` を付けないと引用符が付いて、そのままでは実行できません。**
+
+```bash
+terraform output -raw app_url      # ブラウザで開く URL
+terraform output -raw ssh_command  # そのまま貼り付けて実行できる SSH コマンド
+```
+
+**秘密鍵は `~/.ssh/ssh-key-<ランダムな 5 文字>.pem` に保存されます。** 手順 5 で配置した `ssh-key.pem` を上書きしないよう、名前を分けています。
+
+**セクションが終わったら削除してください。** 環境を残すとデータベースの無料枠を消費し続けます。
+
+```bash
+terraform destroy -var="resource_group_name=<リソースグループ名>"
+```
+
+**state を失って `destroy` できない場合は、Azure ポータルでリソースグループごと削除してください。** Terraform はリソースグループ自体を管理しておらず、作成したものはすべてその中にあります。
+
+**Cloud Shell にも接続情報が残ります。** `terraform apply` は次の 2 つを実行した端末に作ります。**リソースグループを削除する方法で片付けた場合は、これらも手で消してください。**
+
+| ファイル                        | 内容                           |
+| ------------------------------- | ------------------------------ |
+| `~/mssql-todo-app/src/.env`     | データベースの接続情報（平文） |
+| `~/.ssh/ssh-key-<ランダム>.pem` | VM の秘密鍵                    |
+
 ## アプリを更新したとき
 
-リポジトリが更新されたときは、VM 上で 1 行実行します。
+**手作業で構築した VM の場合です。** リポジトリが更新されたときは、VM 上で 1 行実行します。
 
 ```bash
 cd ~/mssql-todo-app && git pull && sudo deploy/setup.sh
 ```
+
+**Terraform で構築した環境では使えません。** 取得したリポジトリを一時ディレクトリへ置いて削除するため、`~/mssql-todo-app` が残りません。**`terraform destroy` と `terraform apply` で作り直してください。**
 
 `deploy/setup.sh` は何度実行しても同じ結果になります。依存パッケージの更新とサービスの再起動まで実行するため、`systemctl restart` を別に打つ必要はありません。
 

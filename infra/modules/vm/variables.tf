@@ -19,6 +19,42 @@ variable "admin_username" {
   default = "azureuser"
 }
 
+# アプリの取得元。公開リポジトリのため認証はいらない
+variable "app_repository_url" {
+  type    = string
+  default = "https://github.com/m-oka-system/mssql-todo-app.git"
+}
+
+# アプリを配置するかどうか
+# 接続情報の有無では判定できない。db_host などは apply まで値が決まらず、for_each の条件に使えないため
+variable "install_app" {
+  type    = bool
+  default = false
+}
+
+# 接続情報。install_app = true のときに必要になる
+# 拡張機能の protected_settings 経由で渡す
+variable "db_host" {
+  type    = string
+  default = null
+}
+
+variable "db_name" {
+  type    = string
+  default = null
+}
+
+variable "db_user" {
+  type    = string
+  default = null
+}
+
+variable "db_password" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
 variable "vm" {
   type = map(object({
     name                            = string

@@ -397,6 +397,25 @@ sequenceDiagram
 | systemd unit | `/etc/systemd/system/todo.service`         |
 | nginx 設定   | `/etc/nginx/sites-available/todo.conf`     |
 
+### 接続情報の配置
+
+**経路は 2 つあります。** どちらも所有者を `todo`、パーミッションを 600 にします。
+
+| 環境の作り方   | 配置の方法                                 |
+| -------------- | ------------------------------------------ |
+| ポータルで手動 | VM 上でエディタ（`micro`）に手で記入します |
+| Terraform      | VM の拡張機能が起動時に書き込みます        |
+
+**Terraform の経路では、接続情報が画面にもコマンド履歴にも残りません。** 拡張機能の保護された設定として渡すため、転送と VM 上の設定ファイルは Azure と VM だけが知る鍵で暗号化されます。**受講者が値に触れる場面がありません。**
+
+**ただし VM 上から完全に消えるわけではありません。** 拡張機能は実行のためにスクリプトを復号し、`/var/lib/waagent/custom-script/download/0/script.sh` へ書き出します。**このファイルには接続情報が含まれます**（所有者は root、権限は 500）。調査の手順は[トラブルシュートの「terraform apply が拡張機能で失敗する」](troubleshooting.md#terraform-apply-が拡張機能で失敗する)にあります。
+
+**実行した端末にも残ります。** `terraform apply` は接続情報を `src/.env` へ、VM の秘密鍵を `~/.ssh/` へ書き出します。**受講者が Cloud Shell から実行した場合も同じです。** 環境を削除するときは、これらもあわせて片付けます。
+
+**この経路ではアプリの取得と起動も同時に行います。** 手順は[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)にあります。
+
+**`.env` はリポジトリに含めません。** `.gitignore` の対象のため、`setup.sh` は `.env.sample` を雛形として配置するだけです。
+
 ### VM へ取得する範囲
 
 **VM ではリポジトリの一部だけを取得します。** アプリの実行に必要なのは `src/` と `deploy/` だけです。

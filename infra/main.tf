@@ -95,13 +95,13 @@ module "ssh_public_key" {
   source              = "./modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
-  name                = "sshkey-vm"
+  name                = "sshkey-vm-${random_string.suffix.result}"
 }
 
 # SSH 秘密鍵をローカルへ保存する
 resource "local_sensitive_file" "ssh_private_key" {
   content         = module.ssh_public_key.private_key_pem
-  filename        = pathexpand("~/.ssh/ssh-key.pem")
+  filename        = pathexpand("~/.ssh/ssh-key-${random_string.suffix.result}.pem")
   file_permission = "0400"
 }
 
@@ -118,6 +118,13 @@ module "vm" {
       public_ip = true
     }
   }
+
+  # 拡張機能でアプリの配置と .env の書き込みまで行う
+  install_app = true
+  db_host     = module.mssql_server.fully_qualified_domain_name
+  db_name     = module.mssql_database.mssql_database_name
+  db_user     = module.mssql_server.administrator_login
+  db_password = module.mssql_server.administrator_login_password
 }
 
 module "mssql_server" {
@@ -152,9 +159,8 @@ module "mssql_database" {
   name      = "todo"
 }
 
-# アプリの接続情報を src/.env へ書き出す
-# パスワードは画面に出ないため、このファイルを開いて VM 側の /opt/todo/src/.env へ貼り付ける
-# ローカルでアプリを動かす場合は、このまま uv run python src/app.py で使える
+# 接続情報を src/.env へ書き出す。このまま uv run python src/app.py で使える
+# VM への配置には使わない。VM 側は拡張機能が protected_settings 経由で書き込む
 resource "local_sensitive_file" "env" {
   filename        = abspath("${path.root}/../src/.env")
   file_permission = "0600"
