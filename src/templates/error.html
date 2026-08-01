@@ -1,4 +1,3 @@
-<!-- templates/error.html -->
 <!DOCTYPE html>
 <html lang="ja">
 
@@ -9,13 +8,14 @@
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 </head>
 
-<!-- pb-32 は画面下端へ固定した実行環境の表示と本文が重ならないための余白 -->
+{# pb-32 は画面下端へ固定した実行環境の表示と本文が重ならないための余白 #}
+
 <body class="bg-gray-100 min-h-screen pb-32">
   <div class="container mx-auto px-4 py-8 max-w-2xl">
     <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">Todoリスト</h1>
 
-    <!-- 例外の詳細は表示しない -->
-    <!-- ODBC のエラーメッセージにはサーバー名やユーザー名が含まれるため、対処法だけを案内する -->
+    {# 例外の詳細は表示しない #}
+    {# ODBC のエラーメッセージにはサーバー名やユーザー名が含まれるため、対処法だけを案内する #}
     <div class="bg-white p-6 rounded-lg shadow-sm">
       <p class="px-4 py-3 rounded-lg bg-red-100 border border-red-300 text-red-700">
         {{ message }}
@@ -26,7 +26,7 @@
       </a>
     </div>
 
-    <!-- 接続できないときこそ、どのホストがどの DB を見に行ったかが要る -->
+    {# 接続できないときこそ、どのホストがどの DB を見に行ったかが要る #}
     {% include "debug_info.html" %}
   </div>
 </body>

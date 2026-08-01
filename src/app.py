@@ -9,7 +9,16 @@ from pathlib import Path
 
 import pyodbc
 from dotenv import load_dotenv
-from flask import Flask, Response, abort, redirect, render_template, request, url_for
+from flask import (
+    Flask,
+    Response,
+    abort,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from sqlalchemy import URL, Connection, Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.pool import NullPool
@@ -355,10 +364,11 @@ def delete(todo_id: int) -> Response | tuple[str, int]:
 
 
 @app.get("/healthz")
-def healthz() -> tuple[str, int]:
-    """死活確認に応答する"""
+def healthz() -> Response:
+    """死活確認に応答し、画面下部と同じ実行環境の情報を返す"""
     # DB に触らない。deploy/setup.sh は .env の記入前に起動を確認するため
-    return "ok", 200
+    # 画面と同じ情報を JSON でも返す。負荷分散の確認では、HTML を読むより curl 1 回のほうが速い
+    return jsonify(build_debug_info())
 
 
 if __name__ == "__main__":

@@ -90,9 +90,10 @@ wait_for_health() {
     local url="$1"
     local attempt=1
     while [ "$attempt" -le "$HEALTH_CHECK_ATTEMPTS" ]; do
-        # アプリの /healthz は、要求を受け付けられる状態のとき本文に ok を返す
+        # アプリの /healthz は、要求を受け付けられる状態のとき 200 を返す
         # DB には触らないため、接続情報が未記入でも 200 が返る
-        if [ "$(curl -s --max-time 2 "$url")" = "ok" ]; then
+        # 本文は実行環境の情報を載せた JSON のため、ステータスコードで判定する
+        if [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$url")" = "200" ]; then
             return 0
         fi
         sleep "$HEALTH_CHECK_INTERVAL"

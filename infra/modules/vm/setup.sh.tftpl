@@ -3,7 +3,9 @@
 #
 # このファイルは infra/modules/vmss/setup.sh.tftpl と同じ内容を持つ
 # シンボリックリンクにすると Windows で clone したときに実体を失うため、あえて二重に置く
-# 変更するときは両方を直す
+# ポータルへ貼り付ける版が deploy/vmss-portal-setup.sh にある
+# あちらはカスタム データ欄が ASCII しか受け付けないため、コメントが英語になっている
+# 変更するときは 3 つとも直す
 #
 # このファイルは Terraform の templatefile() で展開する
 # bash の変数を使う場合は $${VAR} と書く。$${} でないと Terraform が先に解釈する
