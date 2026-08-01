@@ -55,7 +55,6 @@ variable "app_repository_url" {
 }
 
 # 接続情報は拡張機能の protected_settings 経由で渡す
-# Azure と VM だけが知る鍵で暗号化されるため、VM 上に平文で残らない
 variable "db_host" {
   type = string
 }

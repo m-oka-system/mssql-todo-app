@@ -11,9 +11,29 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Azure の Ubuntu イメージは、起動直後に複数のユニットが apt のロックを取り合う
+# esm-cache と apt-news は Ubuntu 24.04 で追加されたもので、ブート直後に必ず走る
+# 拡張機能はまさにその時間帯に実行されるため、走らせないようにしてから apt を呼ぶ
+# タイマーの復元は deploy/setup.sh の trap が行う
+systemctl stop apt-daily.timer apt-daily-upgrade.timer apt-daily.service \
+    apt-daily-upgrade.service esm-cache.service apt-news.service 2>/dev/null || true
+
+# 停止しても取りこぼす場合に備えて、失敗したら少し待って試し直す
+apt_get_retry() {
+    local attempt
+    for attempt in 1 2 3; do
+        if apt-get "$@"; then
+            return 0
+        fi
+        echo "apt-get が失敗しました。15 秒待って再試行します（$attempt/3）"
+        sleep 15
+    done
+    return 1
+}
+
 # git をインストールする
-apt-get update
-apt-get install -y git
+apt_get_retry update
+apt_get_retry install -y git
 
 # 手順書と同じ範囲を一時ディレクトリへ取得する
 # setup.sh が /opt/todo へコピーを済ませれば用済みのため、残さない

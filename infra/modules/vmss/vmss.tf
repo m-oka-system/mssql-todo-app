@@ -63,7 +63,8 @@ resource "azurerm_orchestrated_virtual_machine_scale_set" "this" {
   # custom_data（cloud-init）を使わないのは理由が 2 つある
   # 1. cloud-init は完了を待たずに VM を ready と報告するため、apply が終わってもアプリが起動していないことがある
   # 2. custom_data は /var/lib/waagent/CustomData に平文で残る
-  # 拡張機能はプロビジョニングの完了まで Terraform が待ち、protected_settings は暗号化される
+  # 拡張機能はプロビジョニングの完了まで Terraform が待つ
+  # protected_settings は転送と設定ファイルが暗号化される。復号されたスクリプトは root 500 で残る
   extension {
     name                               = "setup-todo-app"
     publisher                          = "Microsoft.Azure.Extensions"

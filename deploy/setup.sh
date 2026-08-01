@@ -6,6 +6,9 @@
 #
 # 何度実行しても同じ結果になるように書いている
 # 記入済みの /opt/todo/src/.env は上書きしない
+# ただしこれは「コピー元に .env がない」ことに依存する。src/ をディレクトリごとコピーするため
+# VM 上の clone には .env がない（.gitignore の対象）
+# Terraform を実行した端末の作業ツリーには .env ができるが、そこからこのスクリプトは実行しない
 
 # 途中で失敗したら、その場で止める
 #   -e          コマンドが失敗したら終了する
@@ -36,11 +39,40 @@ log() {
     echo "==> $*"
 }
 
-# Azure の Ubuntu イメージは起動直後に unattended-upgrades が走る
-# 素の apt-get は dpkg のロックを取れずに即座に失敗し、set -e でスクリプトがそこで止まる
-# ロックが空くまで最大 600 秒待たせるため、apt-get はこの関数を通して呼ぶ
-apt_get() {
-    apt-get -o DPkg::Lock::Timeout=600 "$@"
+# Azure の Ubuntu イメージは、起動直後に複数のユニットが apt のロックを取り合う
+# esm-cache と apt-news は Ubuntu 24.04 で追加されたもので、ブート直後に必ず走る
+# apt-daily はタイマー起動のため、待っている最中に割り込むこともある
+# 素の apt-get はロックを取れずに即座に失敗し、set -e でスクリプトがそこで止まる
+#
+# 「待つ」のではなく「走らせない」ことで、タイミングへの依存をなくす
+APT_UNITS="apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service esm-cache.service apt-news.service"
+
+stop_apt_units() {
+    # 停止済みや存在しないユニットでも失敗させない
+    # shellcheck disable=SC2086
+    systemctl stop $APT_UNITS 2>/dev/null || true
+}
+
+start_apt_units() {
+    # 復元するのはタイマーだけ。サービスはタイマーから起動される
+    systemctl start apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+}
+
+# 途中で失敗しても自動更新を止めたままにしない
+trap start_apt_units EXIT
+
+# 停止しても取りこぼす場合に備えて、失敗したら少し待って試し直す
+# 上限は 3 回。ロック以外の失敗（ネットワーク断など）でも再試行するが、45 秒で打ち切る
+apt-get() {
+    local attempt
+    for attempt in 1 2 3; do
+        if command apt-get "$@"; then
+            return 0
+        fi
+        log "apt-get が失敗しました。15 秒待って再試行します（${attempt}/3）"
+        sleep 15
+    done
+    return 1
 }
 
 # 起動に失敗したときの案内
@@ -89,24 +121,27 @@ fi
 #### 1. ODBC Driver 18 の導入
 
 log "ODBC Driver 18 を導入します"
-apt_get update
-apt_get install -y curl ca-certificates
+# 最初の apt の前に自動更新を止める。終了時に trap がタイマーを戻す
+stop_apt_units
+apt-get update
+apt-get install -y curl ca-certificates
 
 # Microsoft のリポジトリ定義と署名鍵を、1 つのパッケージでまとめて登録する
 REPO_DEB="$(mktemp --suffix=.deb)"
 curl -sSLf -o "$REPO_DEB" \
     "https://packages.microsoft.com/config/ubuntu/${UBUNTU_VERSION}/packages-microsoft-prod.deb"
-dpkg -i "$REPO_DEB"
+# dpkg を直接呼ばず apt 経由で入れる。dpkg にはロックを待つ仕組みがない
+apt-get install -y "$REPO_DEB"
 rm -f "$REPO_DEB"
 
-apt_get update
+apt-get update
 # ACCEPT_EULA=Y を付けないと、ライセンス同意のプロンプトで止まる
-ACCEPT_EULA=Y apt_get install -y msodbcsql18
+ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
 #### 2. nginx の導入
 
 log "nginx を導入します"
-apt_get install -y nginx
+apt-get install -y nginx
 
 #### 3. エディタの導入
 
@@ -116,7 +151,7 @@ log "エディタ（micro）を導入します"
 # 受講者が最初につまずく箇所を減らすために入れる
 #   --no-install-recommends  推奨パッケージの xclip（X11 一式を引き込む）を避ける
 # 編集中の作業ファイルを対象のディレクトリに残さないため、中断しても次回そのまま開ける（vi や nano の .swp が残る問題が起きない）
-apt_get install -y --no-install-recommends micro
+apt-get install -y --no-install-recommends micro
 
 #### 4. uv の導入
 
@@ -182,14 +217,9 @@ sudo -u "$APP_USER" env HOME="$APP_DIR" "$UV_BIN" sync --frozen --no-dev --proje
 #### 8. 旧バージョンの残骸の削除
 
 log "旧バージョンの残骸を削除します"
-# 依存のインストールが終わってから消す。順序が重要
-# 先に消すと、set -e で uv sync が失敗したときに次の systemd unit の差し替えへ進めず、旧 unit（ExecStart に streamlit run app.py を持つ）が削除済みのファイルを指したまま残る
-# 動いていたサービスが二度と起動しない状態になる
-#
 # 消す対象は 1 つずつ列挙する
 # rm -rf "$APP_DIR" のようなまとめ消しは、記入済みの .env や作成済みの .venv まで消してしまう
-rm -f "$APP_DIR/app.py"
-rm -rf "$APP_DIR/.streamlit"
+#
 # .env.sample は src/ 配下へ移った
 # 直下に残ると同じ内容が 2 か所に並び、受講者がどちらを使うのか迷う
 rm -f "$APP_DIR/.env.sample"

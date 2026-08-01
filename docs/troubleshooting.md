@@ -184,7 +184,7 @@ sudo apt-get update && sudo apt-get install -y git
 ps aux | grep -c "[a]pt\|[u]nattended"
 ```
 
-**`deploy/setup.sh` はこの問題に対処済みです。** スクリプト内の `apt-get` は最大 600 秒までロックの解放を待ちます。手で打つコマンドだけが対象です。
+**`deploy/setup.sh` はこの問題に対処済みです。** 最初の `apt-get` を実行する前に、自動更新のユニットが終わるまで待ちます。**手で打つコマンドだけが対象です。**
 
 ## ブラウザに 502 Bad Gateway が表示される
 
@@ -278,7 +278,9 @@ sudo tail -30 /var/lib/waagent/custom-script/download/0/stderr
 **原因を直したら、環境を作り直します。**
 
 ```bash
-cd infra
+cd ~/mssql-todo-app/infra
 terraform destroy -var="resource_group_name=<リソースグループ名>"
 terraform apply -var="resource_group_name=<リソースグループ名>"
 ```
+
+**セッションが切れて `terraform.tfstate` を失った場合は、`destroy` が使えません。** 対処は[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)にあります。

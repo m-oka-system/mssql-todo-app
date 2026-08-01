@@ -40,7 +40,10 @@ resource "azurerm_linux_virtual_machine" "this" {
   patch_mode                      = each.value.patch_mode
   secure_boot_enabled             = each.value.secure_boot_enabled
   vtpm_enabled                    = each.value.vtpm_enabled
-  custom_data                     = var.install_app ? null : filebase64("${path.module}/userdata.sh")
+
+  # アプリを入れない構成では、nginx だけを導入して VM の疎通を確認できるようにする
+  # install_app = true のときは deploy/setup.sh が nginx も入れるため使わない
+  custom_data = var.install_app ? null : filebase64("${path.module}/userdata.sh")
 
   network_interface_ids = [
     azurerm_network_interface.this[each.key].id,
@@ -79,7 +82,8 @@ resource "azurerm_linux_virtual_machine" "this" {
 # custom_data（cloud-init）ではなく拡張機能を使う理由は 2 つある
 # 1. cloud-init は完了を待たずに VM を ready と報告するため、apply が終わってもアプリが起動していないことがある
 # 2. custom_data は /var/lib/waagent/CustomData に平文で残る
-# 拡張機能はプロビジョニングの完了まで Terraform が待ち、protected_settings は暗号化される
+# 拡張機能はプロビジョニングの完了まで Terraform が待つ
+# protected_settings は転送と設定ファイルが暗号化される。復号されたスクリプトは root 500 で残る
 resource "azurerm_virtual_machine_extension" "setup" {
   for_each = var.install_app ? var.vm : {}
 

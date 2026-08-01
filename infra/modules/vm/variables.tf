@@ -33,7 +33,7 @@ variable "install_app" {
 }
 
 # 接続情報。install_app = true のときに必要になる
-# 拡張機能の protected_settings 経由で渡すため、VM 上には平文で残らない
+# 拡張機能の protected_settings 経由で渡す
 variable "db_host" {
   type    = string
   default = null
