@@ -27,12 +27,12 @@ variable "app_repository_url" {
 
 # アプリを配置するかどうか
 # 接続情報の有無では判定できない。db_host などは apply まで値が決まらず、for_each の条件に使えないため
-variable "install_app" {
+variable "install_app_enabled" {
   type    = bool
   default = false
 }
 
-# 接続情報。install_app = true のときに必要になる
+# 接続情報。install_app_enabled = true のときに必要になる
 # 拡張機能の protected_settings 経由で渡す
 variable "db_host" {
   type    = string

@@ -1,5 +1,5 @@
 #cloud-config
-# install_app = false のときだけ使う。アプリを入れず、VM の疎通だけを確認する構成向け
+# install_app_enabled = false のときだけ使う。アプリを入れず、VM の疎通だけを確認する構成向け
 #
 # apt のロック対策を書いていないのは、cloud-init が自前で待つため
 # dpkg の 2 つと apt の 2 つ（archives/lock と lists/lock）を実際に取得して確かめる

@@ -112,19 +112,19 @@ module "vm" {
   ssh_public_key      = module.ssh_public_key.public_key_openssh
   subnet_id           = module.subnet.subnet["vm"].id
 
+  # 拡張機能でアプリの配置と .env の書き込みまで行う
+  install_app_enabled = true
+  db_host             = module.mssql_server.fully_qualified_domain_name
+  db_name             = module.mssql_database.mssql_database_name
+  db_user             = module.mssql_server.administrator_login
+  db_password         = module.mssql_server.administrator_login_password
+
   vm = {
     vm01 = {
       name      = "vm01"
       public_ip = true
     }
   }
-
-  # 拡張機能でアプリの配置と .env の書き込みまで行う
-  install_app = true
-  db_host     = module.mssql_server.fully_qualified_domain_name
-  db_name     = module.mssql_database.mssql_database_name
-  db_user     = module.mssql_server.administrator_login
-  db_password = module.mssql_server.administrator_login_password
 }
 
 module "mssql_server" {
