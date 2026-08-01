@@ -275,7 +275,7 @@ sudo tail -30 /var/lib/waagent/custom-script/download/0/stderr
 
 **`script.sh` には接続情報が含まれます。** 所有者は root で、権限は 500 です。**内容を貼り付けて共有しないでください。**
 
-**原因を直したら、環境を作り直します。**
+**原因を直したら、同じ Cloud Shell のセッションで作り直します。**
 
 ```bash
 cd ~/mssql-todo-app/infra
@@ -283,4 +283,4 @@ terraform destroy -var="resource_group_name=<リソースグループ名>"
 terraform apply -var="resource_group_name=<リソースグループ名>"
 ```
 
-**セッションが切れて `terraform.tfstate` を失った場合は、`destroy` が使えません。** 対処は[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)にあります。
+**セッションが切れていた場合は、この方法が使えません。** `terraform.tfstate` が消えているためです。**Azure ポータルでリソースグループごと削除してから、[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)をやり直してください。**

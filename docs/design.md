@@ -410,7 +410,9 @@ sequenceDiagram
 
 **ただし VM 上から完全に消えるわけではありません。** 拡張機能は実行のためにスクリプトを復号し、`/var/lib/waagent/custom-script/download/0/script.sh` へ書き出します。**このファイルには接続情報が含まれます**（所有者は root、権限は 500）。調査の手順は[トラブルシュートの「terraform apply が拡張機能で失敗する」](troubleshooting.md#terraform-apply-が拡張機能で失敗する)にあります。
 
-**実行した端末にも残ります。** `terraform apply` は接続情報を `src/.env` へ、VM の秘密鍵を `~/.ssh/` へ書き出します。**受講者が Cloud Shell から実行した場合も同じです。** 環境を削除するときは、これらもあわせて片付けます。
+**実行した端末にも残ります。** `terraform apply` は接続情報を `src/.env` へ、VM の秘密鍵を `~/.ssh/` へ、リソースの状態を `terraform.tfstate` へ書き出します。**受講者が Cloud Shell から実行した場合も同じです。**
+
+**受講者の環境では手で消す必要がありません。** Cloud Shell をストレージなし（エフェメラル）で使うため、セッションが切れるとまとめて消えます。**作成者が手元で実行した場合は残ります。**
 
 **この経路ではアプリの取得と起動も同時に行います。** 手順は[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)にあります。
 
