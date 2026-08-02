@@ -7,7 +7,14 @@ resource "azurerm_subnet" "this" {
   address_prefixes                  = each.value.address_prefixes
   default_outbound_access_enabled   = each.value.default_outbound_access_enabled
   private_endpoint_network_policies = each.value.private_endpoint_network_policies
-  service_endpoints                 = each.value.service_endpoints
+
+  dynamic "service_endpoint" {
+    for_each = each.value.service_endpoints
+
+    content {
+      service = service_endpoint.value
+    }
+  }
 
   dynamic "delegation" {
     for_each = lookup(each.value, "service_delegation", null) != null ? [each.value.service_delegation] : []
