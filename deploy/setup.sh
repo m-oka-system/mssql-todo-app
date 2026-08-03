@@ -193,7 +193,7 @@ mkdir -p "$APP_DIR/src"
 # 記入済みの .env は残る。コピー元は clone したリポジトリで、.gitignore の対象の .env を含まないため
 # cp はコピー元にないファイルを消さない
 cp -r "$REPO_DIR/src/." "$APP_DIR/src/"
-# リポジトリ直下は列挙する。docs/ や infra/ など、アプリの実行に要らないものが混ざるため
+# リポジトリ直下は列挙する。docs/ や labs/ など、アプリの実行に要らないものが混ざるため
 cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
 
 # 既にある .env は上書きしない。接続情報を記入したあとに再実行しても消えない
