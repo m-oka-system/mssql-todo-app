@@ -1,7 +1,7 @@
 # トラブルシュート
 
 - 対象: Todo アプリ（Flask + Azure SQL Database）
-- 前提: [構築手順](../README.md)
+- 前提: [構築手順](build-todo-app.md)
 
 **手順どおりに進めて動かないときの対処をまとめます。** 症状から探してください。
 
@@ -219,7 +219,7 @@ sudo journalctl -u todo -n 50 --no-pager
 
 **影響** — アップロードした秘密鍵が失われ、SSH で接続できなくなります。**VM 自体とアプリは動き続けます。**
 
-**対処** — 秘密鍵をもう一度アップロードします。手順は[README の「秘密鍵の配置」](../README.md#5-秘密鍵の配置)を参照してください。
+**対処** — 秘密鍵をもう一度アップロードします。手順は[構築手順の「秘密鍵の配置」](build-todo-app.md#5-秘密鍵の配置)を参照してください。
 
 **ハンズオンの区切りごとに環境ごと作り直す場合は、この対処は不要です。**
 
@@ -278,9 +278,11 @@ sudo tail -30 /var/lib/waagent/custom-script/download/0/stderr
 **原因を直したら、同じ Cloud Shell のセッションで作り直します。**
 
 ```bash
-cd ~/mssql-todo-app/infra
-terraform destroy -var="resource_group_name=<リソースグループ名>"
-terraform apply -var="resource_group_name=<リソースグループ名>"
+cd ~/mssql-todo-app/labs/sections/section04-web-server/01-create-todo-environment
+export TF_VAR_resource_group_name="<リソースグループ名>"
+terraform apply
 ```
 
-**セッションが切れていた場合は、この方法が使えません。** `terraform.tfstate` が消えているためです。**Azure ポータルでリソースグループごと削除してから、[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)をやり直してください。**
+**`terraform destroy` は使いません。** 作りかけのリソースが残っていても `apply` は続きから進みます。片付けはリソースグループごとの削除に統一しています。
+
+**セッションが切れていた場合は、この方法が使えません。** `terraform.tfstate` が消えているためです。**Azure ポータルでリソースグループごと削除してから、[コース内ラボ](../labs/sections/section04-web-server/01-create-todo-environment/README.md)をやり直してください。**
