@@ -90,19 +90,27 @@ flowchart LR
 
 ### ファイル構成
 
+**アプリの動作に関わる範囲を中心に示します。** 補足資料（`reference/`）の中身は[README](../README.md)を参照してください。
+
 ```text
 mssql-todo-app/
-├── README.md               # 構築手順とトラブルシュート
+├── README.md               # 教材全体の入口
 ├── pyproject.toml          # 依存パッケージの定義
 ├── uv.lock                 # バージョン固定
 ├── .python-version         # Python のバージョン
 ├── .gitignore              # git の対象外の指定
 ├── .gitattributes          # 改行コードの指定
 ├── docs/
+│   ├── build-todo-app.md   # 構築手順
 │   ├── requirements.md     # 要件定義書
 │   ├── design.md           # 設計書（本書）
 │   └── troubleshooting.md  # 症状別の対処
-├── infra/                  # Terraform（VM と SQL Database を作る側の構成）
+├── labs/                   # コース内ラボ（Terraform で環境を作る側の構成）
+│   ├── modules/            # 全ラボで共有するモジュール
+│   └── sections/           # 演習ごとの手順書と Terraform
+├── scripts/
+│   ├── lab-setup.sh        # ラボ共通の起動処理
+│   └── check.sh            # コミット前の検証
 ├── src/
 │   ├── app.py              # アプリ本体
 │   ├── .env.sample         # 接続情報のテンプレート
@@ -111,9 +119,11 @@ mssql-todo-app/
 │       ├── error.html      # エラーの案内
 │       └── debug_info.html # 実行環境の表示（両方の画面から読み込む）
 └── deploy/
-    ├── setup.sh            # VM のセットアップ
-    ├── todo.service        # systemd unit
-    └── todo.nginx.conf     # nginx の設定
+    ├── README.md              # 配置と更新の手順
+    ├── setup.sh               # VM のセットアップ
+    ├── vmss-portal-setup.sh   # スケールセット用（ポータルへ貼り付ける）
+    ├── todo.service           # systemd unit
+    └── todo.nginx.conf        # nginx の設定
 ```
 
 ## 3. 画面設計
@@ -418,9 +428,9 @@ sequenceDiagram
 
 **実行した端末にも残ります。** `terraform apply` は接続情報を `src/.env` へ、VM の秘密鍵を `~/.ssh/` へ、リソースの状態を `terraform.tfstate` へ書き出します。**受講者が Cloud Shell から実行した場合も同じです。**
 
-**受講者の環境では手で消す必要がありません。** Cloud Shell をストレージなし（エフェメラル）で使うため、セッションが切れるとまとめて消えます。**作成者が手元で実行した場合は残ります。**
+**Cloud Shell をストレージなし（エフェメラル）で起動した場合は、セッションが切れるとまとめて消えます。** ストレージをマウントしている場合と、作成者が手元で実行した場合は残ります。削除の手順は[ラボの片付け](../labs/sections/section04-web-server/01-create-todo-environment/README.md#片付け)にあります。
 
-**この経路ではアプリの取得と起動も同時に行います。** 手順は[README の「Terraform で環境を再現する」](../README.md#terraform-で環境を再現する)にあります。
+**この経路ではアプリの取得と起動も同時に行います。** 手順は[コース内ラボの「Todo アプリの環境を Terraform で構築する」](../labs/sections/section04-web-server/01-create-todo-environment/README.md)にあります。
 
 **`.env` はリポジトリに含めません。** `.gitignore` の対象のため、`setup.sh` は `.env.sample` を雛形として配置するだけです。
 
@@ -433,9 +443,9 @@ sequenceDiagram
 | `--depth 1`                     | 最新のコミットだけを取得します。過去の履歴は残りません |
 | `--sparse` と `sparse-checkout` | `src/` と `deploy/` だけを展開します                   |
 
-`pyproject.toml` や `uv.lock` などリポジトリ直下のファイルは、指定しなくても常に含まれます。VM 上に展開されるのは 14 ファイルです。
+`pyproject.toml` や `uv.lock` などリポジトリ直下のファイルは、指定しなくても常に含まれます。VM 上に展開されるのは 16 ファイルです（直下 6・`src/` 5・`deploy/` 5）。
 
-**`docs/` と `infra/` は作業ツリーに展開されません。** 設計書はブラウザで読み、Terraform は VM を作る側の構成です。どちらもアプリの動作には関係しません。
+**`docs/`・`labs/`・`reference/` は作業ツリーに展開されません。** 設計書と補足資料はブラウザで読み、Terraform は VM を作る側の構成です。いずれもアプリの動作には関係しません。
 
 **ファイル自体は `.git` の中に取得されます。** `sparse-checkout` が絞るのは展開範囲であって、通信量ではありません。
 
@@ -484,4 +494,4 @@ flowchart TD
 | -------------------------------------- | ------------------------ |
 | [要件定義書](requirements.md)          | 背景・機能要件・スコープ |
 | [トラブルシュート](troubleshooting.md) | 症状別の対処             |
-| [README](../README.md)                 | 構築手順                 |
+| [構築手順](build-todo-app.md)          | ポータルからの構築手順   |

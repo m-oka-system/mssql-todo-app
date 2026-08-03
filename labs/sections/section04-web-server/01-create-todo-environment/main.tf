@@ -11,11 +11,6 @@ data "http" "my_ip" {
   }
 }
 
-locals {
-  terraform_client_ip = chomp(data.http.my_ip.response_body)
-  allowed_client_ips  = distinct(concat([local.terraform_client_ip], var.allowed_client_ip))
-}
-
 resource "random_string" "suffix" {
   length  = 5
   lower   = true
@@ -29,7 +24,7 @@ data "azurerm_resource_group" "this" {
 }
 
 module "vnet" {
-  source              = "./modules/vnet"
+  source              = "../../../modules/vnet"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   vnet_name           = "vnet"
@@ -37,7 +32,7 @@ module "vnet" {
 }
 
 module "subnet" {
-  source               = "./modules/subnet"
+  source               = "../../../modules/subnet"
   resource_group_name  = data.azurerm_resource_group.this.name
   virtual_network_name = module.vnet.virtual_network_name
 
@@ -51,7 +46,7 @@ module "subnet" {
 }
 
 module "network_security_group" {
-  source              = "./modules/network_security_group"
+  source              = "../../../modules/network_security_group"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   subnet              = module.subnet.subnet
@@ -92,7 +87,7 @@ module "network_security_group" {
 }
 
 module "ssh_public_key" {
-  source              = "./modules/ssh_public_key"
+  source              = "../../../modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   name                = "sshkey-vm-${random_string.suffix.result}"
@@ -106,7 +101,7 @@ resource "local_sensitive_file" "ssh_private_key" {
 }
 
 module "vm" {
-  source              = "./modules/vm"
+  source              = "../../../modules/vm"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   ssh_public_key      = module.ssh_public_key.public_key_openssh
@@ -128,7 +123,7 @@ module "vm" {
 }
 
 module "mssql_server" {
-  source              = "./modules/mssql_server"
+  source              = "../../../modules/mssql_server"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   name                = "sql-iaas-${random_string.suffix.result}"
@@ -153,7 +148,7 @@ module "mssql_server" {
 }
 
 module "mssql_database" {
-  source    = "./modules/mssql_database"
+  source    = "../../../modules/mssql_database"
   location  = var.location
   server_id = module.mssql_server.mssql_server_id
   name      = "todo"
@@ -162,7 +157,7 @@ module "mssql_database" {
 # 接続情報を src/.env へ書き出す。このまま uv run python src/app.py で使える
 # VM への配置には使わない。VM 側は拡張機能が protected_settings 経由で書き込む
 resource "local_sensitive_file" "env" {
-  filename        = abspath("${path.root}/../src/.env")
+  filename        = abspath("${path.root}/../../../../src/.env")
   file_permission = "0600"
 
   content = <<-EOT
