@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 拡張機能（CustomScript）が各 VM で実行する
 #
-# このファイルは infra/modules/vmss/setup.sh.tftpl と同じ内容を持つ
+# このファイルは labs/modules/vmss/setup.sh.tftpl と同じ内容を持つ
 # シンボリックリンクにすると Windows で clone したときに実体を失うため、あえて二重に置く
 # ポータルへ貼り付ける版が deploy/vmss-portal-setup.sh にある
 # あちらはカスタム データ欄が ASCII しか受け付けないため、コメントが英語になっている
@@ -9,6 +9,9 @@
 #
 # このファイルは Terraform の templatefile() で展開する
 # bash の変数を使う場合は $${VAR} と書く。$${} でないと Terraform が先に解釈する
+#
+# Terraform の補間は shellcheck から未代入の変数に見えるため、SC2154 を無効にする
+# shellcheck disable=SC2154
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
@@ -41,7 +44,7 @@ apt_get_retry install -y git
 # setup.sh が /opt/todo へコピーを済ませれば用済みのため、残さない
 # 使い捨ての環境で、VM 上で git pull して更新する運用を想定しないため
 repo_dir="$(mktemp -d)"
-git clone --depth 1 --sparse ${app_repository_url} "$repo_dir"
+git clone --depth 1 --sparse "${app_repository_url}" "$repo_dir"
 cd "$repo_dir"
 git sparse-checkout set src deploy
 
