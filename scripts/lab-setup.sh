@@ -138,16 +138,10 @@ fi
 echo "サブスクリプション: ${subscription}"
 echo "リソースグループ: ${TF_VAR_resource_group_name}"
 
-# 2 回目以降は、構成だけが最新版へ入れ替わったまま古い state へ適用されることになる
-# 属性の変更によってはリソースが置き換えられるため、無確認では進めない
-if [ -s "${LAB_DIR}/terraform.tfstate" ]; then
-  echo "警告: このラボは既に構築済みです（terraform.tfstate があります）。" >&2
-  echo "教材が更新されている場合、リソースが作り直されることがあります。" >&2
-  echo "作り直したくない場合は、リソースグループごと削除してから実行してください。" >&2
-  echo "" >&2
-  confirm_or_abort
-fi
-
+# 構築済みかどうかで動作を分けない
+# 入口の setup.sh は取得済みのリポジトリを更新しないため、構成だけが新しくなることは起きない
+# 2 回目以降は同じ構成を同じ state へ適用することになり、差分がなければ No changes で終わる
+#
 # -var は渡さない。Terraform が TF_VAR_resource_group_name を自動で読む
 cd "$LAB_DIR"
 terraform init -input=false
