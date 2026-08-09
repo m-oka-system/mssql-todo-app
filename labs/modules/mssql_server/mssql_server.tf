@@ -1,7 +1,7 @@
 resource "random_password" "this" {
-  length           = 20
+  length           = 16
   special          = true
-  override_special = "!#%*()-_=+[]{}:?"
+  override_special = "!#$%&*()-_=+[]{}<>:?"
   min_upper        = 1
   min_lower        = 1
   min_numeric      = 1
