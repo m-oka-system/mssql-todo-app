@@ -4,7 +4,7 @@
 
 **Terraform で、Todo アプリが動く環境をまとめて構築します。** 仮想ネットワーク・仮想マシン・Azure SQL Database の作成から、アプリの配置と起動までが 1 コマンドで終わります。
 
-**何が自動化されるかは、手作業の手順と見比べると分かります。** 対応は次のとおりです（[Todo アプリの構築手順](../../../../docs/build-todo-app.md)の番号に対応します）。
+**何が自動化されるかは、手作業の手順と見比べると分かります。** 対応は次のとおりです（[Todo アプリの構築手順](../../../docs/build-todo-app.md)の番号に対応します）。
 
 | 作られるもの                               | 手作業での手順 |
 | ------------------------------------------ | -------------- |
@@ -42,7 +42,7 @@
 3. 次のコマンドを実行します（5〜10 分かかります）
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/m-oka-system/mssql-todo-app/refs/heads/main/labs/sections/section04-web-server/01-create-todo-environment/setup.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/m-oka-system/mssql-todo-app/refs/heads/main/labs/sections/section09/setup.sh | bash
    ```
 
 4. `Apply complete!` と表示されたら作成完了です
@@ -73,7 +73,7 @@ Azure ポータルでリソースグループを開き、次が作られてい�
 `terraform apply` を実行したディレクトリで、出力を確認します。
 
 ```bash
-cd ~/mssql-todo-app/labs/sections/section04-web-server/01-create-todo-environment
+cd ~/mssql-todo-app/labs/sections/section09
 terraform output -raw app_url
 ```
 
@@ -134,7 +134,7 @@ rm -rf ~/mssql-todo-app ~/.ssh/ssh-key-*.pem
 **`terraform apply` を実行した端末の IP は自動で許可されます。** 別の端末からも接続する場合は、`setup.sh` ではなく手で実行し、変数を追加します。
 
 ```bash
-cd ~/mssql-todo-app/labs/sections/section04-web-server/01-create-todo-environment
+cd ~/mssql-todo-app/labs/sections/section09
 export TF_VAR_resource_group_name="<リソースグループ名>"
 terraform apply -var='allowed_client_ip=["<IP>"]'
 ```
@@ -149,5 +149,5 @@ terraform apply -var='allowed_client_ip=["<IP>"]'
 
 - [Azure SQL Database の無料オファーに関する FAQ](https://learn.microsoft.com/ja-jp/azure/azure-sql/database/free-offer-faq)
 - [Azure Cloud Shell のエフェメラル セッション](https://learn.microsoft.com/ja-jp/azure/cloud-shell/get-started/ephemeral)
-- [設計書](../../../../docs/design.md)
-- [トラブルシュート](../../../../docs/troubleshooting.md)
+- [設計書](../../../docs/design.md)
+- [トラブルシュート](../../../docs/troubleshooting.md)

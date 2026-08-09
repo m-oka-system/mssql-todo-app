@@ -278,11 +278,11 @@ sudo tail -30 /var/lib/waagent/custom-script/download/0/stderr
 **原因を直したら、同じ Cloud Shell のセッションで作り直します。**
 
 ```bash
-cd ~/mssql-todo-app/labs/sections/section04-web-server/01-create-todo-environment
+cd ~/mssql-todo-app/labs/sections/section09
 export TF_VAR_resource_group_name="<リソースグループ名>"
 terraform apply
 ```
 
 **`terraform destroy` は使いません。** 作りかけのリソースが残っていても `apply` は続きから進みます。片付けはリソースグループごとの削除に統一しています。
 
-**セッションが切れていた場合は、この方法が使えません。** `terraform.tfstate` が消えているためです。**Azure ポータルでリソースグループごと削除してから、[コース内ラボ](../labs/sections/section04-web-server/01-create-todo-environment/README.md)をやり直してください。**
+**セッションが切れていた場合は、この方法が使えません。** `terraform.tfstate` が消えているためです。**Azure ポータルでリソースグループごと削除してから、[コース内ラボ](../labs/sections/section09/README.md)をやり直してください。**

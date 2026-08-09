@@ -428,9 +428,9 @@ sequenceDiagram
 
 **実行した端末にも残ります。** `terraform apply` は接続情報を `src/.env` へ、VM の秘密鍵を `~/.ssh/` へ、リソースの状態を `terraform.tfstate` へ書き出します。**受講者が Cloud Shell から実行した場合も同じです。**
 
-**Cloud Shell をストレージなし（エフェメラル）で起動した場合は、セッションが切れるとまとめて消えます。** ストレージをマウントしている場合と、作成者が手元で実行した場合は残ります。削除の手順は[ラボの片付け](../labs/sections/section04-web-server/01-create-todo-environment/README.md#片付け)にあります。
+**Cloud Shell をストレージなし（エフェメラル）で起動した場合は、セッションが切れるとまとめて消えます。** ストレージをマウントしている場合と、作成者が手元で実行した場合は残ります。削除の手順は[ラボの片付け](../labs/sections/section09/README.md#片付け)にあります。
 
-**この経路ではアプリの取得と起動も同時に行います。** 手順は[コース内ラボの「Todo アプリの環境を Terraform で構築する」](../labs/sections/section04-web-server/01-create-todo-environment/README.md)にあります。
+**この経路ではアプリの取得と起動も同時に行います。** 手順は[コース内ラボの「Todo アプリの環境を Terraform で構築する」](../labs/sections/section09/README.md)にあります。
 
 **`.env` はリポジトリに含めません。** `.gitignore` の対象のため、`setup.sh` は `.env.sample` を雛形として配置するだけです。
 

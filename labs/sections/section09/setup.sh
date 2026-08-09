@@ -2,7 +2,7 @@
 # Cloud Shell から curl でパイプ実行する入口。処理の本体は scripts/lab-setup.sh にある
 set -euo pipefail
 
-readonly LAB_PATH="labs/sections/section04-web-server/01-create-todo-environment"
+readonly LAB_PATH="labs/sections/section09"
 readonly REPO_URL="https://github.com/m-oka-system/mssql-todo-app.git"
 # 改名したときに直す箇所を 1 つに保つため、置き場所は URL から導く
 REPO_DIR="${HOME}/$(basename "$REPO_URL" .git)"
