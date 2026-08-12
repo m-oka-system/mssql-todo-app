@@ -48,22 +48,24 @@ git clone --depth 1 --sparse "${app_repository_url}" "$repo_dir"
 cd "$repo_dir"
 git sparse-checkout set src deploy
 
-# ODBC ドライバ・nginx・uv の導入から systemd への登録までを行う
-# 接続情報がなくても完走する。起動確認は DB に触らない /healthz で行うため
-"$repo_dir/deploy/setup.sh"
-
-# 接続情報を書き込む
-# 引数ではなく標準入力で渡す。ps の出力に残さないため
-# install コマンドを使用して書き込みと所有者・パーミッションの設定を同時に行う
-install -o todo -g todo -m 600 /dev/stdin /opt/todo/src/.env <<'ENVFILE'
+# 接続情報を一時ファイルへ書き出す
+# 値を引数に書くと ps の出力に残るため、パスだけを渡す
+# 標準入力は使えない。setup.sh の中の apt-get などが先に消費しうるため
+# mktemp が作るファイルは 600 のため、書き込む前から所有者以外は読めない
+env_file="$(mktemp)"
+cat > "$env_file" <<'ENVFILE'
 DB_HOST=${db_host}
 DB_NAME=${db_name}
 DB_USER=${db_user}
 DB_PASSWORD=${db_password}
 ENVFILE
 
-# .env は起動時に読み込まれるため、書き込んだあとに再起動する
-systemctl restart todo
+# ODBC ドライバ・nginx・uv の導入から systemd への登録までを行う
+# --env-file を渡すと、接続情報の配置までスクリプトの中で終わる
+# サービスを起動する時点で .env が揃うため、あとから再起動する必要がない
+"$repo_dir/deploy/setup.sh" --env-file "$env_file"
+
+rm -f "$env_file"
 
 # 取得したリポジトリを削除する。アプリの本体は /opt/todo にコピー済みのため
 # 途中で失敗した場合は削除まで到達せず、調査のために残る

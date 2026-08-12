@@ -26,16 +26,17 @@ git clone --depth 1 --sparse https://github.com/m-oka-system/mssql-todo-app.git 
 cd "$repo_dir"
 git sparse-checkout set src deploy
 
-"$repo_dir/deploy/setup.sh"
-
-install -o todo -g todo -m 600 /dev/stdin /opt/todo/src/.env <<'ENVFILE'
+env_file="$(mktemp)"
+cat > "$env_file" <<'ENVFILE'
 DB_HOST=<server-name>.database.windows.net
 DB_NAME=todo
 DB_USER=<admin-user>
 DB_PASSWORD=<password>
 ENVFILE
 
-systemctl restart todo
+"$repo_dir/deploy/setup.sh" --env-file "$env_file"
+
+rm -f "$env_file"
 
 cd /
 rm -rf "$repo_dir"

@@ -102,6 +102,40 @@ wait_for_health() {
     return 1
 }
 
+#### 引数の解析
+
+# --env-file <パス> で接続情報のファイルを渡せる
+# 渡されたものを /opt/todo/src/.env へ配置する。配置先・所有者・パーミッションを利用者に打たせない
+# サービスの起動より前に配置するため、渡した場合は再起動も要らない
+#
+# パスは呼び出し側のシェルが展開する
+# スクリプトの中で ~ を書くと、sudo が入れ替えた HOME を指してしまう
+ENV_FILE=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --env-file)
+            if [ $# -lt 2 ]; then
+                echo "--env-file にはファイルのパスが必要です。" >&2
+                exit 1
+            fi
+            ENV_FILE="$2"
+            shift 2
+            ;;
+        *)
+            echo "使い方: sudo $0 [--env-file <接続情報のファイル>]" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# 配置は後半のため、誤りに気づくのが数分後になる
+# 読めないパスは、ここで止めて打ち直してもらう
+if [ -n "$ENV_FILE" ] && [ ! -r "$ENV_FILE" ]; then
+    echo "接続情報のファイルを読み取れません: ${ENV_FILE}" >&2
+    exit 1
+fi
+
 #### 前提の確認
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -196,8 +230,16 @@ cp -r "$REPO_DIR/src/." "$APP_DIR/src/"
 # リポジトリ直下は列挙する。docs/ や labs/ など、アプリの実行に要らないものが混ざるため
 cp "$REPO_DIR/pyproject.toml" "$REPO_DIR/uv.lock" "$REPO_DIR/.python-version" "$APP_DIR/"
 
+# --env-file で渡されたものを優先する。既にある .env は置き換わる
+# install は書き込みと所有者・パーミッションの指定を 1 つのコマンドで行う
+#
+# 渡されたファイルは消さない。何度実行しても同じ結果になる性質を保つため
+# 削除は手順書で案内する
+if [ -n "$ENV_FILE" ]; then
+    log "接続情報を ${APP_DIR}/src/.env へ配置します"
+    install -o "$APP_USER" -g "$APP_USER" -m 600 "$ENV_FILE" "$APP_DIR/src/.env"
 # 既にある .env は上書きしない。接続情報を記入したあとに再実行しても消えない
-if [ ! -f "$APP_DIR/src/.env" ]; then
+elif [ ! -f "$APP_DIR/src/.env" ]; then
     cp "$REPO_DIR/src/.env.sample" "$APP_DIR/src/.env"
 fi
 
@@ -287,24 +329,9 @@ fi
 #### 完了
 
 log "セットアップが完了しました"
-cat <<EOF
 
-次の手順を実行してください。
-
-  1. この VM の送信元 IP アドレスを確認します
-       curl -s https://api.ipify.org
-  2. Azure SQL Database のファイアウォール規則に、1. の IP アドレスを追加します
-     （追加しないと、接続情報が正しくてもデータベースに到達できません）
-  3. 接続情報を記入します（保存は Ctrl+S、終了は Ctrl+Q）
-       sudo -u ${APP_USER} micro ${APP_DIR}/src/.env
-  4. サービスを再起動します
-       sudo systemctl restart ${SERVICE_NAME}
-  5. ブラウザから VM のパブリック IP アドレスへアクセスします
-     （テーブルは最初のアクセスのときにアプリが作成します）
-
-ログを確認するコマンド:
-  sudo journalctl -u ${SERVICE_NAME} -f
-EOF
+# 残りの手順は案内しない。手順書とラボの手順書を正とする
+# 両方に書くと、片方だけが古くなったときに受講者がどちらを信じるか分からなくなる
 
 # 旧版が置いていった .env は、接続情報を含むため自動では消さない
 if [ -f "$APP_DIR/.env" ]; then
