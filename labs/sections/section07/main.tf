@@ -23,67 +23,11 @@ data "azurerm_resource_group" "this" {
   name = var.resource_group_name
 }
 
-module "vnet" {
-  source              = "../../modules/vnet"
+module "network" {
+  source              = "../../modules/network"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
-  vnet_name           = "vnet"
-  address_space       = ["10.0.0.0/16"]
-}
-
-module "subnet" {
-  source               = "../../modules/subnet"
-  resource_group_name  = data.azurerm_resource_group.this.name
-  virtual_network_name = module.vnet.virtual_network_name
-
-  subnet = {
-    vm = {
-      name                            = "snet-vm"
-      address_prefixes                = ["10.0.1.0/24"]
-      default_outbound_access_enabled = true
-    }
-  }
-}
-
-module "network_security_group" {
-  source              = "../../modules/network_security_group"
-  resource_group_name = data.azurerm_resource_group.this.name
-  location            = var.location
-  subnet              = module.subnet.subnet
-
-  network_security_group = {
-    vm = {
-      name          = "nsg-vm"
-      target_subnet = "vm"
-    }
-  }
-
-  network_security_rule = [
-    {
-      target_nsg                 = "vm"
-      name                       = "AllowHttpInbound"
-      priority                   = 100
-      direction                  = "Inbound"
-      access                     = "Allow"
-      protocol                   = "Tcp"
-      source_port_range          = "*"
-      destination_port_range     = "80"
-      source_address_prefix      = "Internet"
-      destination_address_prefix = "*"
-    },
-    {
-      target_nsg                 = "vm"
-      name                       = "AllowSshMyIpInbound"
-      priority                   = 200
-      direction                  = "Inbound"
-      access                     = "Allow"
-      protocol                   = "Tcp"
-      source_port_range          = "*"
-      destination_port_range     = "22"
-      source_address_prefixes    = local.allowed_client_ips
-      destination_address_prefix = "*"
-    },
-  ]
+  allowed_client_ips  = local.allowed_client_ips
 }
 
 module "ssh_public_key" {
@@ -105,11 +49,10 @@ module "vm" {
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   ssh_public_key      = module.ssh_public_key.public_key_openssh
-  subnet_id           = module.subnet.subnet["vm"].id
+  subnet_id           = module.network.subnet_id
 
-  # アプリは入れない。VM への配置は受講者がハンズオンで実施する
-  # false のときは拡張機能を作らず、cloud-init が nginx だけを入れる
-  # 拡張機能を作らないため、接続情報（db_*）は渡さない
+  # アプリは配置しない。受講者がハンズオンで実施する
+  # false のときは拡張機能を使わず、cloud-init で nginx だけを入れる
   install_app_enabled = false
 
   vm = {

@@ -6,10 +6,6 @@ variable "location" {
   type = string
 }
 
-variable "vnet_name" {
-  type = string
-}
-
-variable "address_space" {
+variable "allowed_client_ips" {
   type = list(string)
 }
