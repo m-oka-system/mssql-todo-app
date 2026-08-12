@@ -14,39 +14,15 @@
 # shellcheck disable=SC2154
 set -euo pipefail
 
-export DEBIAN_FRONTEND=noninteractive
+# apt はここでは呼ばない。git は Ubuntu 24.04 のイメージに含まれている
+# 自動更新の停止・ロックの再試行・DEBIAN_FRONTEND は、apt を実際に使う deploy/setup.sh が自前で持つ
 
-# Azure の Ubuntu イメージは、起動直後に複数のユニットが apt のロックを取り合う
-# esm-cache と apt-news は Ubuntu 24.04 で追加されたもので、ブート直後に必ず走る
-# 拡張機能はまさにその時間帯に実行されるため、走らせないようにしてから apt を呼ぶ
-# タイマーの復元は deploy/setup.sh の trap が行う
-systemctl stop apt-daily.timer apt-daily-upgrade.timer apt-daily.service \
-    apt-daily-upgrade.service esm-cache.service apt-news.service 2>/dev/null || true
-
-# 停止しても取りこぼす場合に備えて、失敗したら少し待って試し直す
-apt_get_retry() {
-    local attempt
-    for attempt in 1 2 3; do
-        if apt-get "$@"; then
-            return 0
-        fi
-        echo "apt-get が失敗しました。15 秒待って再試行します（$attempt/3）"
-        sleep 15
-    done
-    return 1
-}
-
-# git をインストールする
-apt_get_retry update
-apt_get_retry install -y git
-
-# 手順書と同じ範囲を一時ディレクトリへ取得する
+# 一時ディレクトリへ取得する
 # setup.sh が /opt/todo へコピーを済ませれば用済みのため、残さない
 # 使い捨ての環境で、VM 上で git pull して更新する運用を想定しないため
 repo_dir="$(mktemp -d)"
-git clone --depth 1 --sparse "${app_repository_url}" "$repo_dir"
+git clone --depth 1 "${app_repository_url}" "$repo_dir"
 cd "$repo_dir"
-git sparse-checkout set src deploy
 
 # 接続情報を一時ファイルへ書き出す
 # 値を引数に書くと ps の出力に残るため、パスだけを渡す

@@ -165,7 +165,7 @@ ssh -i ~/.ssh/ssh-key.pem azureuser@<VM のパブリック IP>
 curl -s https://api.ipify.org
 ```
 
-表示された IP アドレスを、Azure ポータルで SQL サーバーの「ネットワーク」を開き、ファイアウォール規則へ追加して保存します。
+表示された IP アドレスを、Azure ポータルで SQL サーバーの「ネットワーク」を開き、ファイアウォール規則へ登録して保存します。
 
 **この手順を飛ばすと、接続情報が正しくてもデータベースに到達できません。** アプリの画面はファイアウォール規則の確認を促しますが、どの IP を登録すべきかまでは分かりません。
 
@@ -176,17 +176,19 @@ curl -s https://api.ipify.org
 **SSH で VM に接続した状態で**実行します。ホームディレクトリに `mssql-todo-app/` ができます。
 
 ```bash
-sudo apt-get update && sudo apt-get install -y git
-git clone --depth 1 --sparse https://github.com/m-oka-system/mssql-todo-app.git
+git clone --depth 1 https://github.com/m-oka-system/mssql-todo-app.git
 cd mssql-todo-app
-git sparse-checkout set src deploy
 ```
 
-**Ubuntu Server のイメージに git は含まれません。** 1 行目で導入します。
+**git の導入は不要です。** Ubuntu Server 24.04 LTS のイメージに含まれています。
 
-**`Could not get lock` で失敗した場合は、1 分ほど待って同じコマンドを実行してください。** 作成直後の VM では自動更新が動いていることがあります。
+**`git: command not found` と表示された場合だけ、導入してから実行し直してください。**
 
-**VM に置くのは、アプリの実行に必要なファイルだけです。** 範囲と理由は[設計書の「VM へ取得する範囲」](design.md#vm-へ取得する範囲)を参照してください。
+```bash
+sudo apt-get update && sudo apt-get install -y git
+```
+
+**`/opt/todo` へ配置されるのは、アプリの実行に必要なファイルだけです。** 範囲と理由は[設計書の「VM へ取得する範囲」](design.md#vm-へ取得する範囲)を参照してください。
 
 **`src/.env` はリポジトリに含まれません。** `.gitignore` の対象のため、手順 5-3 で送ったファイルを次の手順で取り込みます。
 
