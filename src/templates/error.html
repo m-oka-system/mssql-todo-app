@@ -17,9 +17,15 @@
     {# 例外の詳細は表示しない #}
     {# ODBC のエラーメッセージにはサーバー名やユーザー名が含まれるため、対処法だけを案内する #}
     <div class="bg-white p-6 rounded-lg shadow-sm">
-      <p class="px-4 py-3 rounded-lg bg-red-100 border border-red-300 text-red-700">
-        {{ message }}
-      </p>
+      <div class="px-4 py-3 rounded-lg bg-red-100 border border-red-300 text-red-700">
+        <p>{{ message }}</p>
+        {# 確認する順に並べる。その場で直せるものだけを載せる #}
+        <ul class="list-disc list-outside mt-2 ml-5 space-y-1">
+          {% for check in checks %}
+          <li>{{ check }}</li>
+          {% endfor %}
+        </ul>
+      </div>
       <a href="{{ url_for('index') }}"
         class="inline-block mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200">
         再読み込み

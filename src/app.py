@@ -54,11 +54,15 @@ RESUMING_ERROR_NUMBER = "(40613)"
 # どちらも実機で確認した
 TABLE_ALREADY_EXISTS_SQLSTATE = "42S01"
 TABLE_ALREADY_EXISTS_ERROR_NUMBER = "(2714)"
-DB_ERROR_MESSAGE = (
-    "データベースに接続できません。src/.env の接続情報と、Azure SQL Database の"
-    "ファイアウォール規則にクライアント IP が登録されているかを確認してください。"
-    "待っても復旧しない場合は、無料 vCore 秒の残量を確認してください。"
-    "枯渇による停止は翌月まで再開しません。"
+DB_ERROR_MESSAGE = "データベースに接続できません。次の内容を確認してください。"
+# 頻度の高い順に並べる。どちらも受講者がその場で直せる
+#
+# 無料 vCore 秒の枯渇には触れない
+# ラボはセクションごとに使い捨ての環境を作るため、作り直せば新しい無料枠のデータベースになる
+# 復旧の手順が「リソースグループごと削除して作り直す」で片付けと同じになり、案内を分ける意味がない
+DB_ERROR_CHECKS = (
+    "src/.env の接続情報が正しく設定されているか",
+    "Azure SQL Database のファイアウォール規則に、VM の送信元 IP が登録されているか",
 )
 
 # 引数なしの load_dotenv() はカレントディレクトリから上へ探索するため、起動場所によって .env を読めない
@@ -295,6 +299,13 @@ def inject_debug_info() -> dict:
     return {"debug": build_debug_info()}
 
 
+def render_db_error() -> tuple[str, int]:
+    """データベースに接続できないときの画面を返す"""
+    # 200 で返すと curl の戻り値や監視から異常を検出できないため 503 にする
+    page = render_template("error.html", message=DB_ERROR_MESSAGE, checks=DB_ERROR_CHECKS)
+    return page, 503
+
+
 def render_todo_list(error: str | None = None, status: int = 200) -> tuple[str, int]:
     """Todo の一覧を描画する。入力を拒否したときはメッセージと HTTP 400 を渡す"""
     try:
@@ -304,7 +315,7 @@ def render_todo_list(error: str | None = None, status: int = 200) -> tuple[str, 
         # 例外の詳細はサーバーログにだけ記録する
         # ODBC のエラーメッセージにはサーバー名やユーザー名が含まれるため
         app.logger.exception("データベースへの接続に失敗しました")
-        return render_template("error.html", message=DB_ERROR_MESSAGE), 503
+        return render_db_error()
     return render_template("index.html", todos=todos, error=error), status
 
 
@@ -333,7 +344,7 @@ def add() -> Response | tuple[str, int]:
         add_todo(title)
     except Exception:
         app.logger.exception("タスクの追加に失敗しました")
-        return render_template("error.html", message=DB_ERROR_MESSAGE), 503
+        return render_db_error()
     # 結果を直接描画すると、ブラウザの再読み込みで同じ追加が再送される
     return redirect(url_for("index"))
 
@@ -348,7 +359,7 @@ def complete(todo_id: int) -> Response | tuple[str, int]:
         set_completed(todo_id, completed)
     except Exception:
         app.logger.exception("完了状態の変更に失敗しました")
-        return render_template("error.html", message=DB_ERROR_MESSAGE), 503
+        return render_db_error()
     return redirect(url_for("index"))
 
 
@@ -359,7 +370,7 @@ def delete(todo_id: int) -> Response | tuple[str, int]:
         delete_todo(todo_id)
     except Exception:
         app.logger.exception("削除に失敗しました")
-        return render_template("error.html", message=DB_ERROR_MESSAGE), 503
+        return render_db_error()
     return redirect(url_for("index"))
 
 
