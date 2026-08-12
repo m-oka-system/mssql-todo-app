@@ -8,10 +8,10 @@ output "next_steps" {
   value = <<-EOT
     以下の手順に従って進めてください。
 
-      1. ブラウザでアプリを開く
+      1. ブラウザで Todo アプリを開く
          http://${module.vm.vm_public_ip["vm01"].ip_address}
 
-      2. DB 接続情報を VM へ送る
+      2. DB 接続情報の定義ファイル (.env) を VM へ送る
          scp -i ${local_sensitive_file.ssh_private_key.filename} ${local_sensitive_file.env.filename} ${module.vm.admin_username}@${module.vm.vm_public_ip["vm01"].ip_address}:~/
 
       3. VM へ SSH 接続する
