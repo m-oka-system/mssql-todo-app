@@ -28,6 +28,9 @@ from sqlalchemy.pool import NullPool
 pyodbc.pooling = False
 
 BASE_DIR = Path(__file__).resolve().parent
+# 実際に読み込む .env の場所。VM では /opt/todo/src/.env、手元ではリポジトリの src/.env になる
+# 読み込みと画面の案内で同じ値を使い、案内だけが実態とずれることを防ぐ
+ENV_PATH = BASE_DIR / ".env"
 JST = timezone(timedelta(hours=9))
 TITLE_MAX_LENGTH = 255  # DB の列長 NVARCHAR(255) と一致させる
 # 経路表を引くためだけに使う宛先。文書用に予約されたアドレスで実在しない（RFC 5737）
@@ -61,13 +64,13 @@ DB_ERROR_MESSAGE = "データベースに接続できません。次の内容を
 # ラボはセクションごとに使い捨ての環境を作るため、作り直せば新しい無料枠のデータベースになる
 # 復旧の手順が「リソースグループごと削除して作り直す」で片付けと同じになり、案内を分ける意味がない
 DB_ERROR_CHECKS = (
-    "src/.env の接続情報が正しく設定されているか",
+    f"{ENV_PATH} の接続情報が正しく設定されているか",
     "Azure SQL Database のファイアウォール規則に、VM の送信元 IP が登録されているか",
 )
 
 # 引数なしの load_dotenv() はカレントディレクトリから上へ探索するため、起動場所によって .env を読めない
 # app.py からの相対で指定する
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(ENV_PATH)
 
 app = Flask(__name__)
 # debug が無効のとき、Flask は app.logger にレベルを設定しない
