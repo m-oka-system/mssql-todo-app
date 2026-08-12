@@ -54,29 +54,6 @@ require_number() {
   fi
 }
 
-# 受講者へ確認を取る。制御端末がなければ中止する
-# /dev/tty は誰でも読める権限を持つため、test -r では開けるかどうかを判定できない
-confirm_or_abort() {
-  if ! { exec 3< /dev/tty; } 2> /dev/null; then
-    abort "確認を取れないため中止しました。" \
-      "使用するリソースグループ名を指定してから、もう一度実行してください。" \
-      "" \
-      "  az group list -o table" \
-      '  export TF_VAR_resource_group_name="<リソースグループ名>"'
-  fi
-
-  local answer
-  if ! read -r -p "続けますか？ 続ける場合は yes と入力してください: " answer <&3; then
-    exec 3<&-
-    abort "入力を読み取れなかったため中止しました。"
-  fi
-  exec 3<&-
-
-  if [ "$answer" != "yes" ]; then
-    abort "中止しました。"
-  fi
-}
-
 if [ $# -ne 1 ]; then
   abort "引数の数が正しくありません。" "使い方: $0 <ラボのパス>"
 fi
@@ -119,20 +96,29 @@ if [ "$group_exists" != "true" ]; then
     "TF_VAR_resource_group_name の指定に誤りがないか確認してください。"
 fi
 
-# 既存のリソースがあれば、経路によらず同意を取る
-# 名前を明示した経路のほうが危険が大きい。受講者自身のサブスクリプションである確率が高いため
-# 片付けはリソースグループごとの削除のため、既存のリソースも巻き添えになる
-resource_count="$(run_az az resource list --resource-group "$TF_VAR_resource_group_name" --query "length(@)" -o tsv)"
-require_number "$resource_count" "リソースグループ '${TF_VAR_resource_group_name}' の中身"
-
 subscription="$(run_az az account show --query "name" -o tsv)"
 
-if [ "$resource_count" -gt 0 ]; then
-  echo "警告: リソースグループ '${TF_VAR_resource_group_name}' には既に ${resource_count} 個のリソースがあります。" >&2
-  echo "サブスクリプション: ${subscription}" >&2
-  echo "このラボの片付けは「リソースグループごと削除」です。既存のリソースも消えます。" >&2
-  echo "" >&2
-  confirm_or_abort
+# state があれば、このラボが既にこのリソースグループへ適用している
+# 同じ構成を同じ state へ当て直すだけになるため、そのまま進む。差分がなければ No changes で終わる
+#
+# state がなければ初回として扱う。既存のリソースがあれば中止する
+# エフェメラルな Cloud Shell では、セッションが切れた時点で state も消える
+#
+# 確認を取って続ける選択肢は用意しない。yes と答えても、同じ名前で作ろうとして失敗するため
+# 片付けはリソースグループごとの削除に統一しているため、他のリソースとも同居させない
+if [ ! -s "${LAB_DIR}/terraform.tfstate" ]; then
+  resource_count="$(run_az az resource list --resource-group "$TF_VAR_resource_group_name" --query "length(@)" -o tsv)"
+  require_number "$resource_count" "リソースグループ '${TF_VAR_resource_group_name}' の中身"
+
+  if [ "$resource_count" -gt 0 ]; then
+    abort "リソースグループ '${TF_VAR_resource_group_name}' には既に ${resource_count} 個のリソースがあります。" \
+      "空のリソースグループを指定してください。" \
+      "" \
+      "サブスクリプション: ${subscription}" \
+      "" \
+      "このラボを実行済みの場合は、Azure ポータルでリソースグループごと削除してからやり直してください。" \
+      "作成済みのリソースの記録（${LAB_DIR}/terraform.tfstate）が残っていないため、同じ名前で作り直そうとして失敗します。"
+  fi
 fi
 
 echo "サブスクリプション: ${subscription}"
