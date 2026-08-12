@@ -139,8 +139,6 @@ module "mssql_database" {
 }
 
 # 接続情報を src/.env へ書き出す。このまま uv run python src/app.py で使える
-# 拡張機能を作らない構成のため、VM 上の .env は受講者がハンズオンで記入する
-# その際に転記する値がここに出る
 resource "local_sensitive_file" "env" {
   filename        = abspath("${path.root}/../../../src/.env")
   file_permission = "0600"

@@ -155,7 +155,6 @@ module "mssql_database" {
 }
 
 # 接続情報を src/.env へ書き出す。このまま uv run python src/app.py で使える
-# VM への配置には使わない。VM 側は拡張機能が protected_settings 経由で書き込む
 resource "local_sensitive_file" "env" {
   filename        = abspath("${path.root}/../../../src/.env")
   file_permission = "0600"
