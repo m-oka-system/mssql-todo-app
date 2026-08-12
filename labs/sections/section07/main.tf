@@ -51,9 +51,8 @@ module "vm" {
   ssh_public_key      = module.ssh_public_key.public_key_openssh
   subnet_id           = module.network.subnet_id
 
-  # アプリは入れない。VM への配置は受講者がハンズオンで実施する
-  # false のときは拡張機能を作らず、cloud-init が nginx だけを入れる
-  # 拡張機能を作らないため、接続情報（db_*）は渡さない
+  # アプリは配置しない。受講者がハンズオンで実施する
+  # false のときは拡張機能を使わず、cloud-init で nginx だけを入れる
   install_app_enabled = false
 
   vm = {
