@@ -44,6 +44,8 @@ export TF_VAR_resource_group_name="rg-iaas"
 labs/
 ├── README.md              # 本書
 ├── modules/               # 全ラボで共有する Terraform モジュール
+│   ├── network/           # vnet・subnet・nsg をまとめて呼ぶ
+│   └── <リソース名>/      # vnet・vm・mssql_server など、リソース単位
 └── sections/
     └── sectionNN/         # コースのセクション番号がそのままラボのルートモジュール
         ├── README.md      # 手順書
@@ -52,6 +54,8 @@ labs/
 ```
 
 **1 つのラボを 1 つのディレクトリに閉じます。** 手順書と Terraform が同じ場所にあるため、片方だけが移動して対応が切れることがありません。
+
+**モジュールは基本的にリソース単位です。** 例外は `network/` で、全ラボで内容が同じ `vnet`・`subnet`・`network_security_group` の呼び出しをまとめています。仮想マシンやデータベースはラボごとに設定が変わるため、まとめずにラボ側へ置きます。
 
 **ディレクトリ名はコースのセクション番号だけにします。** 動画の番号とラボのパスが 1 対 1 で対応し、セクション名を変えてもパスが変わりません。
 

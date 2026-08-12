@@ -70,7 +70,7 @@ check_terraform() {
   #
   # モジュールを一時ディレクトリへ複製し、ラボと同じバージョン制約を持ち込んでから検証する
   # 制約なしで検証すると最新のプロバイダが使われ、固定した版に対する結果にならない
-  local modules pin module tmp
+  local modules pin module tmp target
   modules="$(find_terraform_modules)"
 
   if [ -z "$modules" ]; then
@@ -87,16 +87,26 @@ check_terraform() {
     fi
 
     tmp="$(mktemp -d)"
+    # 対象だけでなく labs/modules ごと複製する
+    # 他のモジュールを呼ぶモジュールは source = "../vnet" のような相対パスを持ち、
+    # 対象だけを複製すると参照先が存在せず init が失敗する
+    #
     # templatefile() が参照する *.tftpl や cloud-init.yaml も要るため、中身をすべて複製する
-    cp -R "$module"/. "$tmp/"
-    rm -rf "$tmp/.terraform" "$tmp/.terraform.lock.hcl"
+    cp -R labs/modules/. "$tmp/"
+    # 複製に紛れ込んだ作業ディレクトリは消す。この場で init し直すため
+    rm -rf "$tmp"/*/.terraform "$tmp"/*/.terraform.lock.hcl
+
+    target="${tmp}/$(basename "$module")"
 
     # 子モジュールは source だけを宣言し、バージョンを持たない（計画書 第 6 節）
     # そのままだとラボと違う版で検証されるため、モジュール側の terraform ブロックを外して pin を置く
-    sed -i.bak '/^terraform {/,/^}/d' "$tmp"/*.tf && rm -f "$tmp"/*.bak
-    cp "$pin" "$tmp/zz-provider-pin.tf"
+    #
+    # 外すのは検証の起点にするディレクトリだけでよい
+    # そこから呼ばれるモジュールの宣言は、起点の required_providers に従う
+    sed -i.bak '/^terraform {/,/^}/d' "$target"/*.tf && rm -f "$target"/*.bak
+    cp "$pin" "$target/zz-provider-pin.tf"
 
-    (cd "$tmp" && terraform init -backend=false -input=false > /dev/null && terraform validate > /dev/null)
+    (cd "$target" && terraform init -backend=false -input=false > /dev/null && terraform validate > /dev/null)
     report "validate ${module}" $?
     rm -rf "$tmp"
   done <<< "$modules"
