@@ -289,8 +289,9 @@ def build_debug_info() -> dict:
     return {
         "hostname": get_hostname(),
         "private_ip": get_private_ip(),
-        # .env が未記入でもエラー画面は描画するため、環境変数がない場合を "-" で通す
-        "db_name": os.environ.get("DB_NAME", "-"),
+        # .env が未記入でもエラー画面は描画するため、値がない場合を "-" で通す
+        # get() の既定値では足りない。DB_NAME= の行がある .env を読むと、キーは空文字で存在する
+        "db_name": os.environ.get("DB_NAME") or "-",
     }
 
 
