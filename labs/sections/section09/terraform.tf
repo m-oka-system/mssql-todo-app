@@ -16,12 +16,10 @@ terraform {
       source  = "hashicorp/local"
       version = "=2.9.0"
     }
-    # 無料オファー（useFreeLimit）は azurerm が未対応のため azapi を併用する
     azapi = {
       source  = "Azure/azapi"
       version = "=2.11.0"
     }
-    # ファイアウォール規則へ実行元の IP を自動で登録するために使う
     http = {
       source  = "hashicorp/http"
       version = "=3.6.0"

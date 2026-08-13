@@ -50,45 +50,23 @@ module "vm" {
   ssh_public_key      = module.ssh_public_key.public_key_openssh
   subnet_id           = module.network.subnet_id
 
-  # アプリは配置しない。受講者がハンズオンで実施する
-  # false のときは拡張機能を使わず、cloud-init で nginx だけを入れる
-  install_app_enabled = false
+  # 拡張機能でアプリを配置する。2 台とも同じものが動く
+  install_app_enabled = true
+
+  # このラボはデータベースを作らないため、接続情報は空欄で渡す
+  db_host     = ""
+  db_name     = ""
+  db_user     = ""
+  db_password = ""
 
   vm = {
     vm01 = {
       name      = "vm01"
       public_ip = true
     }
+    vm02 = {
+      name      = "vm02"
+      public_ip = true
+    }
   }
-}
-
-module "mssql_server" {
-  source              = "../../modules/mssql_server"
-  resource_group_name = data.azurerm_resource_group.this.name
-  location            = var.location
-  name                = "sql-iaas-${random_string.suffix.result}"
-
-  # ファイアウォール規則は作らない
-  # 送信元 IP の登録は受講者がハンズオンで実施する
-  firewall_rule = {}
-}
-
-module "mssql_database" {
-  source    = "../../modules/mssql_database"
-  location  = var.location
-  server_id = module.mssql_server.mssql_server_id
-  name      = "todo"
-}
-
-# 接続情報を src/.env へ書き出す。このまま uv run python src/app.py で使える
-resource "local_sensitive_file" "env" {
-  filename        = abspath("${path.root}/../../../src/.env")
-  file_permission = "0600"
-
-  content = <<-EOT
-    DB_HOST=${module.mssql_server.fully_qualified_domain_name}
-    DB_NAME=${module.mssql_database.mssql_database_name}
-    DB_USER=${module.mssql_server.administrator_login}
-    DB_PASSWORD=${module.mssql_server.administrator_login_password}
-  EOT
 }
