@@ -77,6 +77,9 @@ app = Flask(__name__)
 # 実効レベルは root の既定（WARNING）になり、info() は捨てられる
 # gunicorn も --log-config を渡さない限り root を変えないため、明示しないと journal に 1 行も残らない
 app.logger.setLevel(logging.INFO)
+# 既定は True で、jsonify がキーをアルファベット順に並べ替える
+# /healthz で先に読みたいのは hostname のため、build_debug_info() の記述順のまま出す
+app.json.sort_keys = False
 
 _engine: Engine | None = None
 _table_created = False

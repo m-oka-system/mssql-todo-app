@@ -150,8 +150,12 @@ mssql-todo-app/
 **同じ情報を `/healthz` が JSON でも返します。** どの VM が応答したかを繰り返し確かめる場面では、HTML から読み取るより `curl` 1 回で済むほうが速いためです。含める項目は画面と同じで、DB 名以外の接続情報は含めません。
 
 ```json
-{ "db_name": "todo", "hostname": "vmss000000", "private_ip": "10.0.1.5" }
+{ "hostname": "vmss000000", "private_ip": "10.0.1.5", "db_name": "todo" }
 ```
+
+**ホスト名を先頭に置きます。** どの VM が応答したかを最初に読めるようにするためです。Flask は既定でキーをアルファベット順に並べ替えるため、`app.json.sort_keys = False` で無効にします。
+
+**キーの順序に依存した読み取りはしないでください。** JSON のオブジェクトは順序を持たない集合です（[RFC 8259](https://datatracker.ietf.org/doc/html/rfc8259#section-4)）。値は `curl <URL>/healthz | jq .hostname` のようにキーで取り出します。
 
 **画面の下端へ固定して表示します。** 背景を濃くして、アプリの機能ではないことを見た目で区別します。一覧と重ならないよう、本文の下側に余白を取ります。
 
