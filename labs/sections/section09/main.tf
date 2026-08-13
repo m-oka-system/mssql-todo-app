@@ -1,4 +1,3 @@
-# Terraform を実行している環境のグローバル IP を取得する。NSG の SSH 許可と、SQL サーバーのファイアウォール規則の両方に使う
 data "http" "my_ip" {
   url                = "https://api.ipify.org"
   request_timeout_ms = 10000
