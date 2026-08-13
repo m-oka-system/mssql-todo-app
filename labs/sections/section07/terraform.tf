@@ -16,7 +16,6 @@ terraform {
       source  = "hashicorp/local"
       version = "=2.9.0"
     }
-    # 無料オファー（useFreeLimit）は azurerm が未対応のため azapi を併用する
     azapi = {
       source  = "Azure/azapi"
       version = "=2.11.0"
