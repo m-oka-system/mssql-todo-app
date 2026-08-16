@@ -45,6 +45,16 @@ find_terraform_modules() {
   find labs/modules -mindepth 1 -maxdepth 1 -type d | sort
 }
 
+# 受講者に配らない検証用のラボ。手順書を持たないため README を要求しない
+readonly LABS_WITHOUT_README="labs/sections/base"
+
+requires_readme() {
+  case " ${LABS_WITHOUT_README} " in
+    *" $1 "*) return 1 ;;
+  esac
+  return 0
+}
+
 check_terraform() {
   echo "[terraform]"
   terraform fmt -check -recursive labs > /dev/null
@@ -237,6 +247,7 @@ check_docs() {
   # ラボの検出は Terraform ルート起点にする。README を持たないラボも拾える
   local root readme missing=""
   while IFS= read -r root; do
+    requires_readme "$root" || continue
     readme="${root}/README.md"
     if [ ! -f "$readme" ]; then
       missing="${missing}${root}: README.md がありません"$'\n'
@@ -282,6 +293,7 @@ check_docs() {
     lab_path="$(grep -oE '^readonly LAB_PATH="[^"]+"' "${root}/setup.sh" | sed 's/.*="//; s/"$//')"
     [ "$lab_path" = "$root" ] || bad="${bad}${root}/setup.sh: LAB_PATH=${lab_path}"$'\n'
 
+    requires_readme "$root" || continue
     url_path="$(grep -oE 'refs/heads/main/[^ ]*/setup\.sh' "${root}/README.md" | sed 's|refs/heads/main/||; s|/setup\.sh$||' | head -1)"
     [ -z "$url_path" ] || [ "$url_path" = "$root" ] || bad="${bad}${root}/README.md: curl の URL が ${url_path}"$'\n'
   done < <(find_terraform_roots)
