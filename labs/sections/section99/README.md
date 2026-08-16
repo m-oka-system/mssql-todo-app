@@ -17,6 +17,8 @@
 
 **手作業の手順はコース内ラボ環境向けではありません。** ご自身のサブスクリプションで実施する内容のため、コース内ラボでは読むだけにしてください。
 
+**このラボを扱うセクションは決まっていません。** ディレクトリ名の `section99` は仮の番号です。**確定したらセクション番号へ改名します。**
+
 ## 注意事項
 
 > [!CAUTION]
@@ -44,7 +46,7 @@
 3. 次のコマンドを実行します（5〜10 分かかります）
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/m-oka-system/mssql-todo-app/refs/heads/main/labs/sections/section09/setup.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/m-oka-system/mssql-todo-app/refs/heads/main/labs/sections/section99/setup.sh | bash
    ```
 
 4. `Apply complete!` と表示されたら作成完了です
@@ -75,7 +77,7 @@ Azure ポータルでリソースグループを開き、次が作られてい�
 `terraform apply` を実行したディレクトリで、出力を確認します。
 
 ```bash
-cd ~/mssql-todo-app/labs/sections/section09
+cd ~/mssql-todo-app/labs/sections/section99
 terraform output -raw app_url
 ```
 
@@ -136,7 +138,7 @@ rm -rf ~/mssql-todo-app ~/.ssh/ssh-key-*.pem
 **`terraform apply` を実行した端末の IP は自動で許可されます。** 別の端末からも接続する場合は、`setup.sh` ではなく手で実行し、変数を追加します。
 
 ```bash
-cd ~/mssql-todo-app/labs/sections/section09
+cd ~/mssql-todo-app/labs/sections/section99
 export TF_VAR_resource_group_name="<リソースグループ名>"
 terraform apply -var='allowed_client_ip=["<IP>"]'
 ```

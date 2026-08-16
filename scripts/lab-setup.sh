@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ラボ環境を構築する。各ラボの setup.sh から呼ばれる
-# 引数はリポジトリルートから見たラボのパス（例: labs/sections/section09）
+# 引数はリポジトリルートから見たラボのパス（例: labs/sections/section07）
 set -euo pipefail
 
 # readonly では右辺のコマンド置換が失敗しても set -e が止めないため、代入と分ける
