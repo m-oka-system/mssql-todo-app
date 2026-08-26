@@ -47,7 +47,7 @@ module "mssql_server" {
   source              = "../../modules/mssql_server"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
-  name                = "sql-iaas-${random_string.suffix.result}"
+  name                = "sql-${random_string.suffix.result}"
 
   # ファイアウォール規則は作らない
   # ロードバランサのフロントエンド IP の登録は受講者がハンズオンで実施する
