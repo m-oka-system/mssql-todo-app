@@ -29,6 +29,14 @@ module "network" {
   allowed_client_ips  = local.allowed_client_ips
 }
 
+module "nat_gateway" {
+  source              = "../../modules/nat_gateway"
+  resource_group_name = data.azurerm_resource_group.this.name
+  location            = var.location
+  subnet_id           = module.network.subnet_id
+  name                = "natgw"
+}
+
 module "ssh_public_key" {
   source              = "../../modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
@@ -49,14 +57,18 @@ module "mssql_server" {
   location            = var.location
   name                = "sql-${random_string.suffix.result}"
 
-  # ファイアウォール規則は作らない
-  # ロードバランサのフロントエンド IP の登録は受講者がハンズオンで実施する
-  firewall_rule = {}
+  firewall_rule = {
+    natgw = {
+      name             = "natgw"
+      start_ip_address = module.nat_gateway.public_ip_address
+      end_ip_address   = module.nat_gateway.public_ip_address
+    }
+  }
 }
 
 module "mssql_database" {
   source    = "../../modules/mssql_database"
   location  = var.location
-  server_id = module.mssql_server.mssql_server_id
+  server_id = module.mssql_server.id
   name      = "todo"
 }

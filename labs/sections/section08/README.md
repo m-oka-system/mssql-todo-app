@@ -154,10 +154,32 @@ terraform apply -var='allowed_client_ip=["<IP>"]'
 
 **VM にはパブリック IP が付いています。** ロードバランサを作る前に 1 台ずつ確認するためと、サブネットが既定の送信アクセスを無効にしているためです。付けないと VM がインターネットへ出られず、アプリの取得ができません。
 
+### パブリック IP を付けない構成での送信経路
+
+**VM にパブリック IP を付けない場合、送信の経路を別に用意します。** サブネット（`snet-vm`）は既定の送信アクセスを無効にしているため、何もしないとインターネットへ出られません。**バックエンドプールに入れただけでは出られません。**
+
+選択肢は 2 つです。
+
+| 方法                         | 役割               | 送信元 IP                   |
+| ---------------------------- | ------------------ | --------------------------- |
+| ロードバランサの**送信規則** | 入口と出口を兼ねる | フロントエンド IP           |
+| **NAT Gateway**              | 出口だけを担当する | NAT Gateway のパブリック IP |
+
+**負荷分散規則だけでは足りません。** ポータルの負荷分散規則は、既定で「送信規則を使用する」が選ばれます。**送信規則を別に作らないと、送信は成立しません。**
+
+**Microsoft は NAT Gateway を推奨しています。** 送信専用に設計されており、SNAT ポートの枯渇が起きにくいためです。ロードバランサの送信規則は、規模が大きくなると割り当ての調整が要ります。
+
+**両方があるときは NAT Gateway が優先されます。** サブネットに関連付けた時点で、送信規則は使われなくなります。
+
+**[スケールセットのラボ](../section09/README.md)では NAT Gateway を使います。** スケールセットのインスタンスは起動した直後にアプリを取得するため、**ロードバランサができるより先に送信の口が要る**ためです。
+
 ## 参考 URL
 
 - [Azure Load Balancer とは](https://learn.microsoft.com/ja-jp/azure/load-balancer/load-balancer-overview)
 - [Load Balancer の正常性プローブ](https://learn.microsoft.com/ja-jp/azure/load-balancer/load-balancer-custom-probe-overview)
+- [Load Balancer の送信規則](https://learn.microsoft.com/ja-jp/azure/load-balancer/outbound-rules)
+- [Azure NAT Gateway とは](https://learn.microsoft.com/ja-jp/azure/nat-gateway/nat-overview)
+- [送信接続の方法の比較](https://learn.microsoft.com/ja-jp/azure/load-balancer/load-balancer-outbound-connections)
 - [Azure Cloud Shell のエフェメラル セッション](https://learn.microsoft.com/ja-jp/azure/cloud-shell/get-started/ephemeral)
 - [設計書](../../../docs/design.md)
 - [トラブルシュート](../../../docs/troubleshooting.md)
