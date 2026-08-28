@@ -1,8 +1,8 @@
-output "vmss_id" {
+output "id" {
   value = azurerm_orchestrated_virtual_machine_scale_set.this.id
 }
 
-output "vmss_name" {
+output "name" {
   value = azurerm_orchestrated_virtual_machine_scale_set.this.name
 }
 

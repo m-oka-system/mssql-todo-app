@@ -53,7 +53,7 @@ module "vm" {
   # 拡張機能でアプリの配置と .env の書き込みまで行う
   install_app_enabled = true
   db_host             = module.mssql_server.fully_qualified_domain_name
-  db_name             = module.mssql_database.mssql_database_name
+  db_name             = module.mssql_database.name
   db_user             = module.mssql_server.administrator_login
   db_password         = module.mssql_server.administrator_login_password
 
@@ -76,8 +76,8 @@ module "mssql_server" {
     {
       vm = {
         name             = "vm01"
-        start_ip_address = module.vm.vm_public_ip["vm01"].ip_address
-        end_ip_address   = module.vm.vm_public_ip["vm01"].ip_address
+        start_ip_address = module.vm.public_ip_address["vm01"]
+        end_ip_address   = module.vm.public_ip_address["vm01"]
       }
     },
     {
@@ -93,7 +93,7 @@ module "mssql_server" {
 module "mssql_database" {
   source    = "../../modules/mssql_database"
   location  = var.location
-  server_id = module.mssql_server.mssql_server_id
+  server_id = module.mssql_server.id
   name      = "todo"
 }
 
@@ -104,7 +104,7 @@ resource "local_sensitive_file" "env" {
 
   content = <<-EOT
     DB_HOST=${module.mssql_server.fully_qualified_domain_name}
-    DB_NAME=${module.mssql_database.mssql_database_name}
+    DB_NAME=${module.mssql_database.name}
     DB_USER=${module.mssql_server.administrator_login}
     DB_PASSWORD=${module.mssql_server.administrator_login_password}
   EOT

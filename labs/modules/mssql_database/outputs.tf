@@ -1,7 +1,3 @@
-output "mssql_database_id" {
-  value = azapi_resource.this.id
-}
-
-output "mssql_database_name" {
+output "name" {
   value = azapi_resource.this.name
 }

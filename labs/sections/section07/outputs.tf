@@ -9,13 +9,13 @@ output "next_steps" {
     以下の手順に従って進めてください。
 
       1. ブラウザで Todo アプリを開く
-         http://${module.vm.vm_public_ip["vm01"].ip_address}
+         http://${module.vm.public_ip_address["vm01"]}
 
       2. DB 接続情報の定義ファイル (.env) を VM へ送る
-         scp -i ${local_sensitive_file.ssh_private_key.filename} ${local_sensitive_file.env.filename} ${module.vm.admin_username}@${module.vm.vm_public_ip["vm01"].ip_address}:~/
+         scp -i ${local_sensitive_file.ssh_private_key.filename} ${local_sensitive_file.env.filename} ${module.vm.admin_username}@${module.vm.public_ip_address["vm01"]}:~/
 
       3. VM へ SSH 接続する
-         ssh -i ${local_sensitive_file.ssh_private_key.filename} ${module.vm.admin_username}@${module.vm.vm_public_ip["vm01"].ip_address}
+         ssh -i ${local_sensitive_file.ssh_private_key.filename} ${module.vm.admin_username}@${module.vm.public_ip_address["vm01"]}
 
       4. アプリを取得して配置する（接続した VM 上で実行）
          git clone --depth 1 https://github.com/m-oka-system/mssql-todo-app.git

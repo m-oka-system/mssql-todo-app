@@ -1,4 +1,4 @@
-output "mssql_server_id" {
+output "id" {
   value = azurerm_mssql_server.this.id
 }
 

@@ -9,11 +9,11 @@ output "next_steps" {
     以下の手順に従って進めてください。
 
       1. ブラウザで Todo アプリを開く (データベースがないためエラー画面が表示)
-         http://${module.vm.vm_public_ip["vm01"].ip_address}
-         http://${module.vm.vm_public_ip["vm02"].ip_address}
+         http://${module.vm.public_ip_address["vm01"]}
+         http://${module.vm.public_ip_address["vm02"]}
 
       2. ヘルスチェック用の URL にアクセスして正常性を確認する
-         curl http://${module.vm.vm_public_ip["vm01"].ip_address}/healthz
-         curl http://${module.vm.vm_public_ip["vm02"].ip_address}/healthz
+         curl http://${module.vm.public_ip_address["vm01"]}/healthz
+         curl http://${module.vm.public_ip_address["vm02"]}/healthz
   EOT
 }
