@@ -90,7 +90,7 @@ Azure ポータルで VM の「ネットワーク設定」を開き、受信規�
 **22 番の IP は手で入力します。** 接続元が Cloud Shell（Azure 側のコンテナ）で、ブラウザとは別のアドレスだからです。Cloud Shell で実行して控えてください。
 
 ```bash
-curl -s https://api.ipify.org
+curl https://api.ipify.org
 ```
 
 **ブラウザで調べた IP を入れないでください。** Cloud Shell の送信元とは別のアドレスです。取り違えると SSH で接続できません。
@@ -162,7 +162,7 @@ ssh -i ~/.ssh/ssh-key.pem azureuser@<VM のパブリック IP>
 **SSH で VM に接続した状態で**実行します。VM が Azure SQL Database へ接続するときの送信元 IP アドレスを調べます。
 
 ```bash
-curl -s https://api.ipify.org
+curl https://api.ipify.org
 ```
 
 表示された IP アドレスを、Azure ポータルで SQL サーバーの「ネットワーク」を開き、ファイアウォール規則へ登録して保存します。

@@ -23,7 +23,7 @@ output "next_steps" {
          sudo deploy/setup.sh --env-file ~/.env
 
       5. VM の送信元 IP を SQL サーバーのファイアウォール規則へ登録する（接続した VM 上で実行）
-         curl -s https://api.ipify.org
+         curl https://api.ipify.org
          Azure ポータルで SQL サーバーの「ネットワーク」を開き、表示された IP を登録する
          登録したら 1. のブラウザを再読み込みする
   EOT
