@@ -31,14 +31,14 @@ resource "azurerm_network_security_rule" "http" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "80"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = "*"
   destination_address_prefix  = "*"
 }
 
 resource "azurerm_network_security_rule" "ssh" {
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.vm.name
-  name                        = "AllowSshMyIpInbound"
+  name                        = "AllowSshIpInbound"
   priority                    = 200
   direction                   = "Inbound"
   access                      = "Allow"
