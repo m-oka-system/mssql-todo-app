@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/local"
       version = "=2.9.0"
     }
+    azapi = {
+      source  = "Azure/azapi"
+      version = "=2.11.0"
+    }
     http = {
       source  = "hashicorp/http"
       version = "=3.6.0"

@@ -29,6 +29,14 @@ module "network" {
   allowed_client_ips  = local.allowed_client_ips
 }
 
+module "nat_gateway" {
+  source              = "../../modules/nat_gateway"
+  resource_group_name = data.azurerm_resource_group.this.name
+  location            = var.location
+  subnet_id           = module.network.subnet_id
+  name                = "natgw"
+}
+
 module "ssh_public_key" {
   source              = "../../modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
@@ -43,34 +51,19 @@ resource "local_sensitive_file" "ssh_private_key" {
   file_permission = "0400"
 }
 
-module "vm" {
-  source              = "../../modules/vm"
-  resource_group_name = data.azurerm_resource_group.this.name
-  location            = var.location
-  ssh_public_key      = module.ssh_public_key.public_key_openssh
-  subnet_id           = module.network.subnet_id
-
-  # アプリは配置しない。受講者がハンズオンで実施する
-  # false のときは拡張機能を使わず、cloud-init で nginx だけを入れる
-  install_app_enabled = false
-
-  vm = {
-    vm01 = {
-      name      = "vm01"
-      public_ip = true
-    }
-  }
-}
-
 module "mssql_server" {
   source              = "../../modules/mssql_server"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   name                = "sql-${random_string.suffix.result}"
 
-  # ファイアウォール規則は作らない
-  # 送信元 IP の登録は受講者がハンズオンで実施する
-  firewall_rule = {}
+  firewall_rule = {
+    natgw = {
+      name             = "natgw"
+      start_ip_address = module.nat_gateway.public_ip_address
+      end_ip_address   = module.nat_gateway.public_ip_address
+    }
+  }
 }
 
 module "mssql_database" {
@@ -78,17 +71,4 @@ module "mssql_database" {
   location  = var.location
   server_id = module.mssql_server.id
   name      = "todo"
-}
-
-# 接続情報を src/.env へ書き出す。このまま uv run python src/app.py で使える
-resource "local_sensitive_file" "env" {
-  filename        = abspath("${path.root}/../../../src/.env")
-  file_permission = "0600"
-
-  content = <<-EOT
-    DB_HOST=${module.mssql_server.fully_qualified_domain_name}
-    DB_NAME=${module.mssql_database.name}
-    DB_USER=${module.mssql_server.administrator_login}
-    DB_PASSWORD=${module.mssql_server.administrator_login_password}
-  EOT
 }

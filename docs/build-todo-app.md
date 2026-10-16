@@ -118,7 +118,7 @@ chmod 400 ~/.ssh/ssh-key.pem
 
 #### 5-2. `.env` を作る
 
-**[コース内ラボ](../labs/sections/section07/README.md)から進んできた場合、この手順は不要です。** `terraform apply` が接続情報を `~/mssql-todo-app/src/.env` へ書き出しています。5-3 へ進んでください。
+**[コース内ラボ](../labs/sections/section08/README.md)から進んできた場合、この手順は不要です。** `terraform apply` が接続情報を `~/mssql-todo-app/src/.env` へ書き出しています。5-3 へ進んでください。
 
 ```bash
 code ~/.env

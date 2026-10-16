@@ -8,12 +8,23 @@ output "next_steps" {
   value = <<-EOT
     以下の手順に従って進めてください。
 
-      1. ブラウザで Todo アプリを開く (データベースがないためエラー画面が表示)
+      1. ブラウザで Todo アプリを開く
          http://${module.vm.public_ip_address["vm01"]}
-         http://${module.vm.public_ip_address["vm02"]}
 
-      2. ヘルスチェック用の URL にアクセスして正常性を確認する
-         curl http://${module.vm.public_ip_address["vm01"]}/healthz
-         curl http://${module.vm.public_ip_address["vm02"]}/healthz
+      2. DB 接続情報の定義ファイル (.env) を VM へ送る
+         scp -i ${local_sensitive_file.ssh_private_key.filename} ${local_sensitive_file.env.filename} ${module.vm.admin_username}@${module.vm.public_ip_address["vm01"]}:~/
+
+      3. VM へ SSH 接続する
+         ssh -i ${local_sensitive_file.ssh_private_key.filename} ${module.vm.admin_username}@${module.vm.public_ip_address["vm01"]}
+
+      4. アプリを取得して配置する（接続した VM 上で実行）
+         git clone --depth 1 https://github.com/m-oka-system/mssql-todo-app.git
+         cd mssql-todo-app
+         sudo deploy/setup.sh --env-file ~/.env
+
+      5. VM の送信元 IP を SQL サーバーのファイアウォール規則へ登録する（接続した VM 上で実行）
+         curl https://api.ipify.org
+         Azure ポータルで SQL サーバーの「ネットワーク」を開き、表示された IP を登録する
+         登録したら 1. のブラウザを再読み込みする
   EOT
 }

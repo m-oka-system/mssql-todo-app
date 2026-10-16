@@ -29,14 +29,6 @@ module "network" {
   allowed_client_ips  = local.allowed_client_ips
 }
 
-module "nat_gateway" {
-  source              = "../../modules/nat_gateway"
-  resource_group_name = data.azurerm_resource_group.this.name
-  location            = var.location
-  subnet_id           = module.network.subnet_id
-  name                = "natgw"
-}
-
 module "ssh_public_key" {
   source              = "../../modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
@@ -51,24 +43,30 @@ resource "local_sensitive_file" "ssh_private_key" {
   file_permission = "0400"
 }
 
-module "mssql_server" {
-  source              = "../../modules/mssql_server"
+module "vm" {
+  source              = "../../modules/vm"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
-  name                = "sql-${random_string.suffix.result}"
+  ssh_public_key      = module.ssh_public_key.public_key_openssh
+  subnet_id           = module.network.subnet_id
 
-  firewall_rule = {
-    natgw = {
-      name             = "natgw"
-      start_ip_address = module.nat_gateway.public_ip_address
-      end_ip_address   = module.nat_gateway.public_ip_address
+  # 拡張機能でアプリを配置する。2 台とも同じものが動く
+  install_app_enabled = true
+
+  # このラボはデータベースを作らないため、接続情報は空欄で渡す
+  db_host     = ""
+  db_name     = ""
+  db_user     = ""
+  db_password = ""
+
+  vm = {
+    vm01 = {
+      name      = "vm01"
+      public_ip = true
+    }
+    vm02 = {
+      name      = "vm02"
+      public_ip = true
     }
   }
-}
-
-module "mssql_database" {
-  source    = "../../modules/mssql_database"
-  location  = var.location
-  server_id = module.mssql_server.id
-  name      = "todo"
 }

@@ -1,17 +1,19 @@
-# カスタム データを取り出すコマンドを出力
-output "show_custom_data" {
-  value = "cd ${abspath(path.root)} && terraform output -raw vmss_custom_data"
-}
+# apply の直後に、次の手順で入力するコマンドを画面へ表示する
+#
+# terraform output はコメントを出せない。description を書いても Outputs には表示されない
+# 並び順も名前のアルファベット順で固定される
+# 値そのものを複数行にすれば、改行と補足を画面へ出せる（ヒアドキュメントとして表示される）
 
-# VMSS のカスタム データ欄へ貼り付ける内容
-# DB のパスワードを含むため sensitive にする
-# apply の画面には <sensitive> としか出ないため、取り出すには terraform output -raw が要る
-output "vmss_custom_data" {
-  value     = local.vmss_custom_data
-  sensitive = true
+output "next_steps" {
+  value = <<-EOT
+    以下の手順に従って進めてください。
 
-  precondition {
-    condition     = alltrue([for placeholder in local.vmss_custom_data_placeholders : strcontains(local.vmss_setup_script, placeholder)])
-    error_message = "deploy/vmss-portal-setup.sh に想定したプレースホルダがありません。表記を変えた場合は locals.tf の置換も直してください。"
-  }
+      1. ブラウザで Todo アプリを開く (データベースがないためエラー画面が表示)
+         http://${module.vm.public_ip_address["vm01"]}
+         http://${module.vm.public_ip_address["vm02"]}
+
+      2. ヘルスチェック用の URL にアクセスして正常性を確認する
+         curl http://${module.vm.public_ip_address["vm01"]}/healthz
+         curl http://${module.vm.public_ip_address["vm02"]}/healthz
+  EOT
 }
