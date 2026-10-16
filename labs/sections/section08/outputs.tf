@@ -8,7 +8,7 @@ output "next_steps" {
   value = <<-EOT
     以下の手順に従って進めてください。
 
-      1. ブラウザで Todo アプリを開く
+      1. ブラウザで VM に接続する (nginx の Welcome 画面が表示)
          http://${module.vm.public_ip_address["vm01"]}
 
       2. DB 接続情報の定義ファイル (.env) を VM へ送る
