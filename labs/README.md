@@ -37,6 +37,8 @@ curl -fsSL https://raw.githubusercontent.com/m-oka-system/mssql-todo-app/refs/he
 export TF_VAR_resource_group_name="rg-iaas"
 ```
 
+**指定したリソースグループが存在しない場合は、`setup.sh` が作成します。** 場所は東日本（`japaneast`）です。
+
 **リソースグループは Terraform では作りません。** 片付けを「リソースグループごと削除する」に統一するためです。
 
 **Cloud Shell はストレージなし（エフェメラル）で起動してください。** マウントしている場合、接続情報と秘密鍵、`terraform.tfstate` が `$HOME` に残り続けます。削除の手順は各ラボの「片付け」にあります。

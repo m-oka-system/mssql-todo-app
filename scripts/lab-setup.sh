@@ -91,9 +91,15 @@ fi
 # 代入で受ける。if の条件内でコマンド置換すると set -e が抑止され、run_az の abort がサブシェルで止まる
 group_exists="$(run_az az group exists --name "$TF_VAR_resource_group_name")"
 
+# 自動検出したものは必ず存在するため、ここに来るのは名前を指定された場合だけ
+# az group create は既存のグループにも成功するが、場所が違うと失敗するため、無いときだけ作る
+# 場所は variables.tf の location の既定値と揃える
 if [ "$group_exists" != "true" ]; then
-  abort "リソースグループ '${TF_VAR_resource_group_name}' が見つかりません。" \
-    "TF_VAR_resource_group_name の指定に誤りがないか確認してください。"
+  echo "リソースグループ '${TF_VAR_resource_group_name}' を作成します。"
+  run_az az group create \
+    --name "$TF_VAR_resource_group_name" \
+    --location japaneast \
+    --output none
 fi
 
 subscription="$(run_az az account show --query "name" -o tsv)"
