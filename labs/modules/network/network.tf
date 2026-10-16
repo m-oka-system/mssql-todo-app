@@ -24,7 +24,7 @@ resource "azurerm_network_security_group" "vm" {
 resource "azurerm_network_security_rule" "http" {
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.vm.name
-  name                        = "AllowHttpInbound"
+  name                        = "AllowHTTPInbound"
   priority                    = 100
   direction                   = "Inbound"
   access                      = "Allow"
@@ -38,7 +38,7 @@ resource "azurerm_network_security_rule" "http" {
 resource "azurerm_network_security_rule" "ssh" {
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.vm.name
-  name                        = "AllowSshIpInbound"
+  name                        = "AllowSSHInbound"
   priority                    = 200
   direction                   = "Inbound"
   access                      = "Allow"
