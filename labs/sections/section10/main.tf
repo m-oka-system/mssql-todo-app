@@ -41,7 +41,7 @@ module "ssh_public_key" {
   source              = "../../modules/ssh_public_key"
   resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
-  name                = "sshkey-vm-${random_string.suffix.result}"
+  name                = "sshkey-vm"
 }
 
 # SSH 秘密鍵をローカルへ保存する
