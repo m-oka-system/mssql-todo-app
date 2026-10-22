@@ -125,10 +125,10 @@ terraform output -raw next_steps
 
 `terraform apply` は次の 2 つを、実行した端末に作ります。
 
-| ファイル                        | 内容            |
-| ------------------------------- | --------------- |
-| `~/.ssh/ssh-key-<ランダム>.pem` | **VM の秘密鍵** |
-| `terraform.tfstate`             | リソースの状態  |
+| ファイル               | 内容            |
+| ---------------------- | --------------- |
+| `~/.ssh/sshkey-vm.pem` | **VM の秘密鍵** |
+| `terraform.tfstate`    | リソースの状態  |
 
 **`src/.env` は作られません。** データベースを作らないラボのためです。
 
@@ -137,7 +137,7 @@ terraform output -raw next_steps
 **ストレージをマウントしている場合は残り続けます。** 次を実行して消してください。
 
 ```bash
-rm -rf ~/mssql-todo-app ~/.ssh/ssh-key-*.pem
+rm -rf ~/mssql-todo-app ~/.ssh/sshkey-vm.pem
 ```
 
 ## 補足

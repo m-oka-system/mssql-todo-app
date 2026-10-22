@@ -39,7 +39,7 @@ module "ssh_public_key" {
 # SSH 秘密鍵をローカルへ保存する
 resource "local_sensitive_file" "ssh_private_key" {
   content         = module.ssh_public_key.private_key_pem
-  filename        = pathexpand("~/.ssh/ssh-key-${random_string.suffix.result}.pem")
+  filename        = pathexpand("~/.ssh/${module.ssh_public_key.name}.pem")
   file_permission = "0400"
 }
 

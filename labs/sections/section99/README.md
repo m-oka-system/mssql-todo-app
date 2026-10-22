@@ -93,7 +93,7 @@ terraform output -raw app_url
 terraform output -raw ssh_command
 ```
 
-出力されたコマンドをそのまま貼り付けて実行します。**秘密鍵は `~/.ssh/ssh-key-<ランダムな 5 文字>.pem` に保存されています。**
+出力されたコマンドをそのまま貼り付けて実行します。**秘密鍵は `~/.ssh/sshkey-vm.pem` に保存されています。**
 
 ## 確認
 
@@ -121,18 +121,18 @@ terraform output -raw ssh_command
 
 `terraform apply` は次の 3 つを、実行した端末に作ります。
 
-| ファイル                        | 内容                     |
-| ------------------------------- | ------------------------ |
-| `src/.env`                      | **DB のパスワード**      |
-| `~/.ssh/ssh-key-<ランダム>.pem` | **VM の秘密鍵**          |
-| `terraform.tfstate`             | リソースの状態と接続情報 |
+| ファイル               | 内容                     |
+| ---------------------- | ------------------------ |
+| `src/.env`             | **DB のパスワード**      |
+| `~/.ssh/sshkey-vm.pem` | **VM の秘密鍵**          |
+| `terraform.tfstate`    | リソースの状態と接続情報 |
 
 **エフェメラル（ストレージなし）で起動した場合は、セッションが切れるとまとめて消えます。** 事前準備の手順 1 で選んでいれば、操作は不要です。
 
 **ストレージをマウントしている場合は残り続けます。** 次を実行して消してください。
 
 ```bash
-rm -rf ~/mssql-todo-app ~/.ssh/ssh-key-*.pem
+rm -rf ~/mssql-todo-app ~/.ssh/sshkey-vm.pem
 ```
 
 ## 補足
