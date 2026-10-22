@@ -22,9 +22,9 @@ output "next_steps" {
          cd mssql-todo-app
          sudo deploy/setup.sh --env-file ~/.env
 
-      5. VM のパブリック IP アドレスを SQL サーバーのファイアウォール規則へ登録する（接続した VM 上で実行）
-         curl https://api.ipify.org
-         Azure ポータルで SQL サーバーの「ネットワーク」を開き、表示された IP を登録する
+      5. VM のパブリック IP アドレスを SQL サーバーのファイアウォール規則へ登録する（Azure ポータルで実行）
+         VM の「概要」を開き、パブリック IP アドレスをコピーする
+         SQL サーバーの「ネットワーク」を開き、コピーした パブリック IP アドレス を登録する
          登録したら 1. のブラウザを再読み込みする
   EOT
 }
