@@ -13,7 +13,7 @@ output "next_steps" {
          http://${module.vm.public_ip_address["vm02"]}
 
       2. ヘルスチェック用の URL にアクセスして正常性を確認する
-         curl http://${module.vm.public_ip_address["vm01"]}/healthz
-         curl http://${module.vm.public_ip_address["vm02"]}/healthz
+         curl http://${module.vm.public_ip_address["vm01"]}/health
+         curl http://${module.vm.public_ip_address["vm02"]}/health
   EOT
 }

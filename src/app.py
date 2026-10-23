@@ -78,7 +78,7 @@ app = Flask(__name__)
 # gunicorn も --log-config を渡さない限り root を変えないため、明示しないと journal に 1 行も残らない
 app.logger.setLevel(logging.INFO)
 # 既定は True で、jsonify がキーをアルファベット順に並べ替える
-# /healthz で先に読みたいのは hostname のため、build_debug_info() の記述順のまま出す
+# /health で先に読みたいのは hostname のため、build_debug_info() の記述順のまま出す
 app.json.sort_keys = False
 
 _engine: Engine | None = None
@@ -381,8 +381,8 @@ def delete(todo_id: int) -> Response | tuple[str, int]:
     return redirect(url_for("index"))
 
 
-@app.get("/healthz")
-def healthz() -> Response:
+@app.get("/health")
+def health() -> Response:
     """死活確認に応答し、画面下部と同じ実行環境の情報を返す"""
     # DB に触らない。deploy/setup.sh は .env の記入前に起動を確認するため
     # 画面と同じ情報を JSON でも返す。負荷分散の確認では、HTML を読むより curl 1 回のほうが速い

@@ -90,7 +90,7 @@ wait_for_health() {
     local url="$1"
     local attempt=1
     while [ "$attempt" -le "$HEALTH_CHECK_ATTEMPTS" ]; do
-        # アプリの /healthz は、要求を受け付けられる状態のとき 200 を返す
+        # アプリの /health は、要求を受け付けられる状態のとき 200 を返す
         # DB には触らないため、接続情報が未記入でも 200 が返る
         # 本文は実行環境の情報を載せた JSON のため、ステータスコードで判定する
         if [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "$url")" = "200" ]; then
@@ -296,11 +296,11 @@ if ! systemctl is-active --quiet "${SERVICE_NAME}.service"; then
 fi
 
 log "アプリの応答を待ちます（最大 $((HEALTH_CHECK_ATTEMPTS * HEALTH_CHECK_INTERVAL)) 秒）"
-# 確認先は / ではなく /healthz
+# 確認先は / ではなく /health
 # / はデータベースに接続するため、この時点では .env が未記入で 503 が返り、正しくセットアップできてもここで失敗扱いになる
-if ! wait_for_health "http://127.0.0.1:8000/healthz"; then
+if ! wait_for_health "http://127.0.0.1:8000/health"; then
     abort_with_log_hint \
-        "アプリが応答しません（http://127.0.0.1:8000/healthz）。" "$SERVICE_NAME"
+        "アプリが応答しません（http://127.0.0.1:8000/health）。" "$SERVICE_NAME"
 fi
 
 #### 10. nginx の設定
@@ -319,11 +319,11 @@ if ! systemctl is-active --quiet nginx; then
 fi
 
 log "nginx 経由の応答を確認します"
-# 80 番から同じ /healthz に届けば、nginx から gunicorn への経路が通っている
+# 80 番から同じ /health に届けば、nginx から gunicorn への経路が通っている
 # ここも / は使わない（.env 未記入の状態では 503 になる）
-if ! wait_for_health "http://127.0.0.1/healthz"; then
+if ! wait_for_health "http://127.0.0.1/health"; then
     abort_with_log_hint \
-        "nginx 経由でアプリに到達できません（http://127.0.0.1/healthz）。" "nginx"
+        "nginx 経由でアプリに到達できません（http://127.0.0.1/health）。" "nginx"
 fi
 
 #### 完了

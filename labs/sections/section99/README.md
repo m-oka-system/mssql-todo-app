@@ -105,7 +105,7 @@ terraform output -raw ssh_command
 | どの VM が応答したか分かること   | 画面の下端にホスト名とプライベート IP が出る |
 | 接続先のデータベースが正しいこと | 画面の下端の DB 名が `todo` になっている     |
 
-**同じ情報は `curl <app_url>/healthz` でも取得できます。**
+**同じ情報は `curl <app_url>/health` でも取得できます。**
 
 **初回の表示に 1 分ほどかかる場合があります。** 異常ではありません。Azure SQL Database が自動一時停止から復帰するためです。
 
